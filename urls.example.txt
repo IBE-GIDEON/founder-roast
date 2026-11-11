@@ -1,0 +1,4 @@
+# One startup URL per line. Copy to urls.txt and run:
+#   node scripts/batch-roast.mjs urls.txt --base https://your-domain.com
+# Good sources: today's Product Hunt launches, "Show HN" posts, founders sharing their sites on X.
+example.com
