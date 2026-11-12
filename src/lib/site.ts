@@ -13,7 +13,10 @@ export const RECHECK_REFUND_CENTS = Math.floor(RECHECK_PRICE_CENTS / 2);
 export const RECHECK_REFUND_LABEL = money(RECHECK_REFUND_CENTS);
 
 export const X_HANDLE = (process.env.NEXT_PUBLIC_X_HANDLE || "").replace(/^@/, "");
-export const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL || "";
+/** Where support mail actually goes. */
+export const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL || "prevearchiveapp@gmail.com";
+/** What visitors see on the site instead of the raw address. */
+export const CONTACT_LABEL = process.env.NEXT_PUBLIC_CONTACT_LABEL || "founderroast.support";
 
 export const IS_PROD = process.env.NODE_ENV === "production";
 

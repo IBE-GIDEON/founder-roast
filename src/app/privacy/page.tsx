@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { LegalPage } from "@/components/LegalPage";
-import { CONTACT_EMAIL } from "@/lib/site";
+import { CONTACT_EMAIL, CONTACT_LABEL } from "@/lib/site";
 
 export const metadata: Metadata = { title: "Privacy" };
 
 export default function Privacy() {
-  const contact = CONTACT_EMAIL ? <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> : "the contact address on this site";
+  const contact = CONTACT_EMAIL ? <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_LABEL}</a> : "the contact address on this site";
   return (
     <LegalPage title="Privacy" updated="November 11, 2026">
       <p>We collect as little as we can.</p>
@@ -16,7 +16,7 @@ export default function Privacy() {
       </p>
       <h2>Payments</h2>
       <p>
-        Payments are handled by Stripe. We never see your card number. Stripe shares your email and the payment status with us so we can deliver
+        Payments are handled by PayPal. We never see your card or bank details. PayPal shares your email and the payment status with us so we can deliver
         and, if needed, refund your report.
       </p>
       <h2>AI processing</h2>

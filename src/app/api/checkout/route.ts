@@ -1,15 +1,15 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { accessCookieName, isValidKey } from "@/lib/access";
+import { createOrder, paypalEnabled } from "@/lib/paypal";
 import { upToDate } from "@/lib/recheck";
 import { getReport } from "@/lib/reports";
 import { baseUrl, IS_PROD, PRICE_CENTS, RECHECK_PRICE_CENTS, RECHECK_REFUND_LABEL, SITE_NAME } from "@/lib/site";
-import { stripe, stripeEnabled } from "@/lib/stripe";
 
 export const runtime = "nodejs";
 
 /**
- * POST { id, kind?: "report" | "recheck", k? }
+ * POST { id, kind?: "report" | "recheck", k? } → { url } to send the buyer to PayPal.
  * - report:  $39 full report.
  * - recheck: $15 fix check. Only for people who already have the full report, and never once the site is up to date.
  */
@@ -28,45 +28,28 @@ export async function POST(req: Request) {
     }
   }
 
-  if (!stripeEnabled()) {
+  const returnPath = kind === "recheck" ? `/r/${report.id}/recheck/start` : `/r/${report.id}/unlock`;
+
+  if (!paypalEnabled()) {
     if (IS_PROD) return NextResponse.json({ error: "Payments aren't configured yet." }, { status: 503 });
     // Development only: skip payment so both paid flows can be tested end to end.
-    return NextResponse.json({ url: kind === "recheck" ? `${base}/r/${report.id}/recheck/start?dev=1` : `${base}/r/${report.id}/unlock?dev=1` });
+    return NextResponse.json({ url: `${base}${returnPath}?dev=1` });
   }
 
   try {
     const recheck = kind === "recheck";
-    const session = await stripe().checkout.sessions.create({
-      mode: "payment",
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency: "usd",
-            unit_amount: recheck ? RECHECK_PRICE_CENTS : PRICE_CENTS,
-            product_data: recheck
-              ? {
-                  name: `${SITE_NAME}: fix check for ${report.domain}`,
-                  description: `Re-checks every finding from your original roast. If everything is fixed, ${RECHECK_REFUND_LABEL} is refunded automatically.`,
-                }
-              : {
-                  name: `${SITE_NAME}: full report for ${report.domain}`,
-                  description: "Blind spots, competitor teardown, four scores, growth plan, landing page rewrite and PDF.",
-                },
-          },
-        },
-      ],
-      allow_promotion_codes: !recheck,
-      metadata: { reportId: report.id, domain: report.domain, kind },
-      payment_intent_data: { metadata: { reportId: report.id, domain: report.domain, kind } },
-      success_url: recheck
-        ? `${base}/r/${report.id}/recheck/start?session_id={CHECKOUT_SESSION_ID}`
-        : `${base}/r/${report.id}/unlock?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${base}/r/${report.id}?canceled=1`,
+    const order = await createOrder({
+      amountCents: recheck ? RECHECK_PRICE_CENTS : PRICE_CENTS,
+      description: recheck
+        ? `${SITE_NAME} fix check for ${report.domain}. ${RECHECK_REFUND_LABEL} back if everything is fixed.`
+        : `${SITE_NAME} full report for ${report.domain}`,
+      customId: `${kind}:${report.id}`,
+      returnUrl: `${base}${returnPath}`,
+      cancelUrl: `${base}/r/${report.id}?canceled=1`,
     });
-    return NextResponse.json({ url: session.url });
+    return NextResponse.json({ url: order.approveUrl });
   } catch (e) {
     console.error("[checkout] failed", e);
-    return NextResponse.json({ error: "Couldn't start checkout. Try again." }, { status: 500 });
+    return NextResponse.json({ error: "Couldn't start PayPal checkout. Try again." }, { status: 500 });
   }
 }

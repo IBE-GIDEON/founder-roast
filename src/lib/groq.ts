@@ -2,7 +2,7 @@ import "server-only";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const PRIMARY_MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
-const FALLBACK_MODEL = "llama-3.3-70b-versatile";
+const FALLBACK_MODEL = process.env.GROQ_FALLBACK_MODEL || "openai/gpt-oss-20b";
 
 export class AnalyzeError extends Error {}
 

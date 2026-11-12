@@ -4,7 +4,7 @@ Paste a startup URL. AI reads the site and its competitors live, then returns a 
 
 - **Free:** overall score, verdict, roast line, first blind spot, competitor logos, the full "what we checked" log, a watermarked share card.
 - **Full report ($39):** 3 blind spots with evidence, a competitor teardown, four scores with every issue and fix, a growth plan, a rewritten hero, and a PDF.
-- **Fix check ($15):** re-checks only the original findings. It never invents new problems. If everything is fixed, the site is marked up to date, no more checks can be sold for it, and $7.50 is refunded automatically through Stripe.
+- **Fix check ($15):** re-checks only the original findings. It never invents new problems. If everything is fixed, the site is marked up to date, no more checks can be sold for it, and $7.50 is refunded automatically through PayPal.
 - **One roast per site:** repeat visitors get the original roast (180 days), not a fresh set of findings.
 
 ## What you need to launch
@@ -12,7 +12,7 @@ Paste a startup URL. AI reads the site and its competitors live, then returns a 
 | Thing | Where | Cost | Env vars |
 | --- | --- | --- | --- |
 | Groq API key | console.groq.com/keys | pay as you go, fractions of a cent per roast | `GROQ_API_KEY` |
-| Stripe account (activated) | dashboard.stripe.com | 2.9% + 30¢ per sale | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` |
+| PayPal Business account + REST app | developer.paypal.com → Apps & Credentials | PayPal's per-sale fee | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_ENV` |
 | Upstash Redis | Vercel → Storage → Marketplace → Upstash | free tier is plenty | `KV_REST_API_URL`, `KV_REST_API_TOKEN` |
 | Vercel project | vercel.com (import this GitHub repo) | free / $20 Pro | — |
 | Domain | any registrar or Vercel Domains | ~$10–15/yr | `NEXT_PUBLIC_SITE_URL` |
@@ -21,7 +21,7 @@ Paste a startup URL. AI reads the site and its competitors live, then returns a 
 | X account for the brand | x.com | — | `NEXT_PUBLIC_X_HANDLE` |
 | Support email | any inbox | — | `NEXT_PUBLIC_CONTACT_EMAIL` |
 
-Stripe needs a live website with terms, a refund policy and a contact email before it activates live payments. `/terms` and `/privacy` are included. Read them and set `NEXT_PUBLIC_CONTACT_EMAIL`.
+Your PayPal account must be able to **receive** payments (a Business account; in some countries PayPal accounts are send-only). `/terms` (with the refund policy) and `/privacy` are included; the support address defaults to the one in `src/lib/site.ts`.
 
 ## Run locally
 
@@ -33,7 +33,7 @@ npm run dev
 
 Without keys the app still runs end to end in development:
 - no `GROQ_API_KEY` → heuristic "demo analysis" (labelled in the UI)
-- no `STRIPE_SECRET_KEY` → checkout is skipped, so you can test unlocks and fix checks
+- no PayPal keys → checkout is skipped, so you can test unlocks and fix checks
 - no Redis → data is stored in `.data/`
 
 In production, missing keys fail loudly instead.
@@ -43,9 +43,9 @@ In production, missing keys fail loudly instead.
 1. Import the GitHub repo in Vercel.
 2. Add Upstash Redis from the Vercel Marketplace (it sets `KV_REST_API_URL` / `KV_REST_API_TOKEN`).
 3. Add the other env vars from `.env.example`.
-4. In Stripe → Developers → Webhooks, add `https://YOUR_DOMAIN/api/stripe/webhook` for `checkout.session.completed`, then put its signing secret in `STRIPE_WEBHOOK_SECRET`.
-5. Point your domain at Vercel and set `NEXT_PUBLIC_SITE_URL`.
-6. Run one real purchase with a Stripe test key first, then switch to live keys.
+4. Create a PayPal REST app (Sandbox first) and add `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_ENV=sandbox`. No webhook is needed: payments are captured server-side when the buyer returns, so nobody is charged without getting access.
+5. Point your domain at Vercel and set `NEXT_PUBLIC_SITE_URL` (optional; it falls back to the `.vercel.app` URL).
+6. Buy once with a PayPal sandbox buyer account, then switch to the Live app's keys and `PAYPAL_ENV=live`.
 
 ## How a roast works
 
@@ -75,6 +75,7 @@ Set `PRICE_CENTS` (default 3900) and `RECHECK_PRICE_CENTS` (default 1500). The f
 - `src/lib/analyze.ts`: the roast prompt and scoring
 - `src/lib/reports.ts`: the pipeline and live events
 - `src/lib/recheck.ts`: fix check, verification and the half refund
-- `src/app/api/*`: roast stream, checkout, fix check, Stripe webhook, PDF, share card
+- `src/lib/paypal.ts`: PayPal orders, capture and refunds
+- `src/app/api/*`: roast stream, checkout, fix check, PDF, share card
 - `src/components/RoastLive.tsx`: the live checks screen
 - `src/components/report/*`: the report UI

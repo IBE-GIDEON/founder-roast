@@ -334,6 +334,11 @@ export function extract(html: string, pageUrl: URL, meta: { status: number; ms: 
 
   $("script, style, noscript, svg, template, iframe").remove();
 
+  // Keep words apart: "Email for<br/>developers" must read "Email for developers", not "Email fordevelopers".
+  // Spans are left alone so letter-by-letter animated headlines don't become "H e l l o".
+  $("br, hr").replaceWith(" ");
+  $("p, div, li, dt, dd, td, th, h1, h2, h3, h4, h5, h6, a, button, label, section, article, header, footer, nav, blockquote, figcaption").after(" ");
+
   const textOf = (sel: string, max: number, maxLen = 160) =>
     uniq(
       $(sel)
@@ -391,8 +396,9 @@ export function extract(html: string, pageUrl: URL, meta: { status: number; ms: 
     stylesheets,
     fontFamilies,
     socialLinks,
-    hasPrivacy: /privacy/.test(footerText) || allLinks.some((l) => /privacy/i.test(l.href)),
-    hasTerms: /terms/.test(footerText) || allLinks.some((l) => /terms|tos/i.test(l.href)),
+    // Many sites use a single /legal or /policies page instead of separate privacy and terms links.
+    hasPrivacy: /privacy|legal/.test(footerText) || allLinks.some((l) => /privacy|\/legal|\/policies|gdpr/i.test(l.href)),
+    hasTerms: /terms|legal/.test(footerText) || allLinks.some((l) => /terms|\/tos\b|\/legal|\/policies/i.test(l.href)),
     hasContact: allLinks.some((l) => /^mailto:|contact|support/i.test(l.href)) || /contact|support@/.test(allTextLower),
     priceMentions,
     testimonialSignals: $("blockquote, [class*='testimonial' i], [class*='review' i], [class*='quote' i]").length,

@@ -93,14 +93,16 @@ export function signalLines(c: CrawlResult): string {
 
 export function pageDump(c: CrawlResult): string {
   const h: PageData = c.home;
+  // One item per line so the model never mistakes a list of headings for one long heading.
+  const list = (items: string[]) => (items.length ? "\n" + items.map((t, i) => `  ${i + 1}. ${t}`).join("\n") + "\n" : " (none) ");
   const parts = [
     `<title>${h.title}</title>`,
     `<meta_description>${h.metaDescription || h.ogDescription}</meta_description>`,
-    `<h1>${h.h1.join(" | ")}</h1>`,
-    `<h2>${h.h2.join(" | ")}</h2>`,
-    `<h3>${h.h3.join(" | ")}</h3>`,
-    `<nav>${h.navLinks.join(" | ")}</nav>`,
-    `<ctas>${h.ctas.join(" | ")}</ctas>`,
+    `<h1_headings count="${h.h1.length}">${list(h.h1)}</h1_headings>`,
+    `<h2_section_headings count="${h.h2.length}">${list(h.h2)}</h2_section_headings>`,
+    `<h3_subheadings count="${h.h3.length}">${list(h.h3)}</h3_subheadings>`,
+    `<nav_links>${list(h.navLinks)}</nav_links>`,
+    `<buttons_and_ctas>${list(h.ctas)}</buttons_and_ctas>`,
     `<homepage_text>${(c.renderedText || h.bodyText).slice(0, 6500)}</homepage_text>`,
   ];
   for (const p of c.extraPages) {
@@ -119,8 +121,8 @@ function competitorDump(comps: CompetitorRead[], market: MarketGuess): string {
         `<competitor name="${c.name}" domain="${c.domain}">`,
         `headline: ${c.headline}`,
         `description: ${c.description}`,
-        `h2: ${c.h2.join(" | ")}`,
-        `ctas: ${c.ctas.join(" | ")}`,
+        `section headings: ${c.h2.map((t) => `"${t}"`).join(", ")}`,
+        `ctas: ${c.ctas.map((t) => `"${t}"`).join(", ")}`,
         `prices: ${c.priceMentions.join(", ") || "none on homepage"}`,
         `trust: ${c.trustPhrases.join(", ") || "none detected"}`,
         `</competitor>`,
@@ -139,6 +141,13 @@ YOUR JOB IS THE "AHA". The founder has already heard generic advice ("add testim
 - Hunt for: contradictions between hero, CTAs and pricing; a strong differentiator buried deep on the page that should be the headline; the obvious buyer objection the page never answers; a competitor claim they could counter but don't; a CTA that asks for too much too early; a target customer named in the nav or footer but not the hero; numbers they have but hide; jargon only insiders understand; missing "who it's NOT for"; a competitor who owns a promise they could own better.
 - Compare against competitors by name. Say what the competitor says that they don't, and where they can win.
 - If something is genuinely good, say so briefly; credibility comes from fairness.
+
+ACCURACY RULES (a wrong claim destroys the whole report):
+- Headings are given as numbered lists: each numbered line is a separate heading. Never treat the list as one long heading.
+- Signals come from automated extraction and can miss things (e.g. content loaded by JavaScript, a single /legal page). Only state that something is missing when the signals AND the page text both show it, and phrase it as "we couldn't find X" rather than "X doesn't exist".
+- Treat odd spacing or truncation in extracted text as an extraction artifact, never as the site's typo.
+- Never invent numbers, guarantees, SLAs, percentages, customer names, logos or claims the company hasn't made. This applies everywhere, including the rewrite's proofLine. Use placeholders like [X customers] or [99.X% uptime] for anything not stated on their page.
+- Write evidence the way a visitor would describe the page ("your homepage shows no price", "the hero buttons are 'Get started' and 'Download ZIP'"). Never mention our internal data labels such as signals, price_mentions, trust_phrases, buttons_and_ctas or heuristic scores.
 
 Score four areas 0-100 with this calibration:
 - 90+: world-class, rare. 75-89: strong. 60-74: decent with clear gaps. 40-59: typical early startup with real problems. Under 40: confusing or broken.

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Logo } from "./Brand";
-import { CONTACT_EMAIL, X_HANDLE } from "@/lib/site";
+import { CONTACT_EMAIL, CONTACT_LABEL, X_HANDLE } from "@/lib/site";
 
 export function Footer() {
   const cols: { title: string; links: { href: string; label: string; external?: boolean }[] }[] = [
@@ -17,7 +17,7 @@ export function Footer() {
       title: "Help",
       links: [
         { href: "/#faq", label: "FAQ" },
-        ...(CONTACT_EMAIL ? [{ href: `mailto:${CONTACT_EMAIL}`, label: "Contact", external: true }] : []),
+        ...(CONTACT_EMAIL ? [{ href: `mailto:${CONTACT_EMAIL}`, label: CONTACT_LABEL, external: true }] : []),
       ],
     },
     {

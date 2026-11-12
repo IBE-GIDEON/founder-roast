@@ -6,7 +6,7 @@ import { AnalyzeError, groqEnabled, groqJSON } from "./groq";
 import { getReport, newId, type RoastEvent } from "./reports";
 import { IS_PROD, RECHECK_REFUND_CENTS } from "./site";
 import { getJSON, setJSON, store } from "./store";
-import { stripe } from "./stripe";
+import { refundCapture } from "./paypal";
 import { SCORE_KEYS, SCORE_META, type Report, type ScoreKey, type TraceLine } from "./types";
 
 /**
@@ -18,8 +18,10 @@ import { SCORE_KEYS, SCORE_META, type Report, type ScoreKey, type TraceLine } fr
 export interface RecheckPayment {
   token: string;
   reportId: string;
-  sessionId: string | null;
-  paymentIntent: string | null;
+  /** PayPal order id */
+  orderId: string | null;
+  /** PayPal capture id, needed to refund */
+  captureId: string | null;
   amount: number;
   dev: boolean;
   createdAt: string;
@@ -66,7 +68,7 @@ const DAY = 60 * 60 * 24;
 // ── storage ──────────────────────────────────────────────────────────
 
 export async function createRecheckPayment(p: Omit<RecheckPayment, "token" | "createdAt">): Promise<RecheckPayment> {
-  const token = p.sessionId ? `cs_${p.sessionId.slice(-24)}` : `dev_${randomBytes(9).toString("base64url")}`;
+  const token = p.orderId ? `pp_${p.orderId}` : `dev_${randomBytes(9).toString("base64url")}`;
   const existing = await getRecheckPayment(token);
   if (existing) return existing;
   const rec: RecheckPayment = { ...p, token, createdAt: new Date().toISOString() };
@@ -183,11 +185,13 @@ function rescore(r: Report, items: CheckItem[]) {
 async function refundHalf(p: RecheckPayment): Promise<Recheck["refund"]> {
   const amount = Math.min(RECHECK_REFUND_CENTS, Math.floor(p.amount / 2));
   if (p.dev) return { amount, status: "simulated" };
-  if (!p.paymentIntent) return { amount, status: "failed" };
+  if (!p.captureId) return { amount, status: "failed" };
   try {
-    const refund = await stripe().refunds.create(
-      { payment_intent: p.paymentIntent, amount, reason: "requested_by_customer", metadata: { reportId: p.reportId, kind: "fix-check-all-clear" } },
-      { idempotencyKey: `fixcheck-half-${p.token}` },
+    const refund = await refundCapture(
+      p.captureId,
+      amount,
+      `fixcheck-half-${p.token}`,
+      "Everything from your roast is fixed. Here's half your fix check back. Your landing page is up to date.",
     );
     return { amount, status: "refunded", id: refund.id };
   } catch (e) {

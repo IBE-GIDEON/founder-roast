@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { LegalPage } from "@/components/LegalPage";
-import { CONTACT_EMAIL, PRICE_LABEL } from "@/lib/site";
+import { CONTACT_EMAIL, CONTACT_LABEL, PRICE_LABEL } from "@/lib/site";
 
 export const metadata: Metadata = { title: "Terms & refunds" };
 
 export default function Terms() {
-  const contact = CONTACT_EMAIL ? <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> : "the contact address on this site";
+  const contact = CONTACT_EMAIL ? <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_LABEL}</a> : "the contact address on this site";
   return (
     <LegalPage title="Terms & refunds" updated="November 11, 2026">
       <p>

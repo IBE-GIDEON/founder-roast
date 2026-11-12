@@ -1,14 +1,14 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { accessCookieName, isValidKey } from "@/lib/access";
+import { captureOrder, paypalEnabled } from "@/lib/paypal";
 import { createRecheckPayment } from "@/lib/recheck";
 import { getReport, recordPurchase } from "@/lib/reports";
 import { baseUrl, IS_PROD, RECHECK_PRICE_CENTS } from "@/lib/site";
-import { stripe, stripeEnabled } from "@/lib/stripe";
 
 export const runtime = "nodejs";
 
-/** Stripe returns fix-check buyers here. Verify payment, then start the live fix check. */
+/** PayPal returns fix-check buyers here (?token=ORDER_ID). Capture and verify, then start the live fix check. */
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
   const url = new URL(req.url);
@@ -18,29 +18,23 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const fail = () => NextResponse.redirect(`${base}/r/${id}?payment=unverified`, 303);
 
   if (url.searchParams.get("dev") === "1") {
-    if (IS_PROD || stripeEnabled()) return fail();
+    if (IS_PROD || paypalEnabled()) return fail();
     const key = (await cookies()).get(accessCookieName(id))?.value;
     if (!isValidKey(id, key)) return fail();
-    const pay = await createRecheckPayment({ reportId: id, sessionId: null, paymentIntent: null, amount: RECHECK_PRICE_CENTS, dev: true });
+    const pay = await createRecheckPayment({ reportId: id, orderId: null, captureId: null, amount: RECHECK_PRICE_CENTS, dev: true });
     return NextResponse.redirect(`${base}/roast?check=${pay.token}`, 303);
   }
 
-  const sessionId = url.searchParams.get("session_id");
-  if (!sessionId || !stripeEnabled()) return fail();
+  const orderId = url.searchParams.get("token");
+  if (!orderId || !paypalEnabled()) return fail();
   try {
-    const session = await stripe().checkout.sessions.retrieve(sessionId);
-    if (session.payment_status !== "paid" || session.metadata?.reportId !== id || session.metadata?.kind !== "recheck") return fail();
-    await recordPurchase({ sessionId, reportId: id, email: session.customer_details?.email || null, amount: session.amount_total, createdAt: new Date().toISOString() });
-    const pay = await createRecheckPayment({
-      reportId: id,
-      sessionId,
-      paymentIntent: typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id || null,
-      amount: session.amount_total ?? RECHECK_PRICE_CENTS,
-      dev: false,
-    });
+    const cap = await captureOrder(orderId);
+    if (!cap.completed || cap.customId !== `recheck:${id}` || cap.currency !== "USD" || cap.amountCents < RECHECK_PRICE_CENTS) return fail();
+    await recordPurchase({ sessionId: orderId, reportId: id, email: cap.email, amount: cap.amountCents, createdAt: new Date().toISOString() });
+    const pay = await createRecheckPayment({ reportId: id, orderId, captureId: cap.captureId, amount: cap.amountCents, dev: false });
     return NextResponse.redirect(`${base}/roast?check=${pay.token}`, 303);
   } catch (e) {
-    console.error("[recheck/start] verify failed", e);
+    console.error("[recheck/start] capture failed", e);
     return fail();
   }
 }

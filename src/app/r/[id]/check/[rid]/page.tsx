@@ -73,8 +73,8 @@ export default async function FixCheckPage({
             <div className="border-t border-[#abefc6] px-6 py-4 text-[13.5px] text-ink-2 sm:px-8">
               {refunded ? (
                 <>
-                  We&apos;ve refunded <span className="font-semibold">${(rc.refund.amount / 100).toFixed(2)}</span>, half your fix check, to your original payment method
-                  {rc.refund.status === "simulated" ? " (simulated in development)" : ""}. Refunds usually land in 5 to 10 business days.
+                  We&apos;ve refunded <span className="font-semibold">${(rc.refund.amount / 100).toFixed(2)}</span>, half your fix check, to your PayPal account
+                  {rc.refund.status === "simulated" ? " (simulated in development)" : ""}. Refunds to a card can take a few business days to show.
                 </>
               ) : (
                 <>Your half refund (${(rc.refund.amount / 100).toFixed(2)}) needs a manual review. We&apos;ll process it and email you.</>
