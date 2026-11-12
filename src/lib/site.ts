@@ -17,9 +17,17 @@ export const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL || "";
 
 export const IS_PROD = process.env.NODE_ENV === "production";
 
+/** Configured site URL, else Vercel's production URL, else null. */
+export function configuredSiteUrl(): string | null {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
+  if (configured) return configured;
+  const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  return vercel ? `https://${vercel}` : null;
+}
+
 /** Absolute base URL: configured site URL first, otherwise the request's own origin. */
 export function baseUrl(req?: Request): string {
-  const configured = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
+  const configured = configuredSiteUrl();
   if (configured) return configured;
   if (req) return new URL(req.url).origin;
   return "http://localhost:3000";

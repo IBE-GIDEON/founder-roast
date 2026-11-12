@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { accessCookieName, isValidKey } from "@/lib/access";
 import { listRechecks } from "@/lib/recheck";
 import { getReport } from "@/lib/reports";
-import { PRICE_LABEL, X_HANDLE } from "@/lib/site";
+import { configuredSiteUrl, PRICE_LABEL, X_HANDLE } from "@/lib/site";
 import { toFreeReport } from "@/lib/types";
 import { Footer } from "@/components/Footer";
 import { FixCheckPanel } from "@/components/report/FixCheckPanel";
@@ -18,7 +18,8 @@ type Props = {
 };
 
 async function origin() {
-  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "");
+  const configured = configuredSiteUrl();
+  if (configured) return configured;
   const h = await headers();
   return `${h.get("x-forwarded-proto") || "http"}://${h.get("host") || "localhost:3000"}`;
 }
