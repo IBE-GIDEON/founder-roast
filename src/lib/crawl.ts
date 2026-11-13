@@ -346,6 +346,13 @@ export function extract(html: string, pageUrl: URL, meta: { status: number; ms: 
   // Keep words apart: "Email for<br/>developers" must read "Email for developers", not "Email fordevelopers".
   // Spans are left alone so letter-by-letter animated headlines don't become "H e l l o".
   $("br, hr").replaceWith(" ");
+  // "<span>Meet Fred</span>Your AI teammate" → "Meet Fred Your…": a word ending lowercase, followed by one
+  // starting uppercase, is two words. (Letter-by-letter animations and acronyms aren't affected.)
+  $("span, strong, em, b, i").each((_, el) => {
+    const own = $(el).text();
+    const next = el.nextSibling ? $(el.nextSibling).text() : "";
+    if (/[a-z]$/.test(own) && /^[A-Z]/.test(next)) $(el).after(" ");
+  });
   $("p, div, li, dt, dd, td, th, h1, h2, h3, h4, h5, h6, a, button, label, section, article, header, footer, nav, blockquote, figcaption").after(" ");
 
   const textOf = (sel: string, max: number, maxLen = 160) =>
