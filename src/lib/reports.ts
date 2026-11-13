@@ -1,7 +1,8 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
 import { analyze } from "./analyze";
-import { guessMarket, readCompetitor, type CompetitorRead } from "./competitors";
+import { guessMarket, readCompetitor, signalsOf, type CompetitorRead } from "./competitors";
+import { strategize } from "./strategy";
 import { cacheKeyFor, crawlSite, normalizeUrl } from "./crawl";
 import { getJSON, setJSON, store } from "./store";
 import { logoFor, type Report, type TraceLine } from "./types";
@@ -136,13 +137,29 @@ export async function createReport(input: string, emit: Emit = () => {}): Promis
     }),
   );
   const comps = reads.filter((r): r is CompetitorRead => !!r);
-  for (const c of comps) step(`Reading ${c.name}'s homepage`, "ok", q(c.headline, 80));
-  if (comps.length) step("Comparing your positioning side by side", "info", `You vs ${comps.map((c) => c.name).join(", ")}`);
+  for (const c of comps) {
+    const s = c.signals;
+    step(
+      `Reading ${c.name}'s homepage`,
+      "ok",
+      `${q(c.headline, 60)} · ${s.pricing.length ? `prices from ${s.pricing[0]}` : s.hasPricingPage ? "pricing page" : "no prices shown"} · ${s.freeOffer ? "free plan" : "no free plan"}`,
+    );
+  }
+  if (comps.length) step("Comparing your page with theirs, side by side", "info", `You vs ${comps.map((c) => c.name).join(", ")}`);
 
-  // 3. The verdict
+  // 3. The verdict: page roast and business roast run in parallel
+  step("Roasting the idea", "info", "Problem, timing, money, moat, distribution");
+  step("Mapping your features against theirs", "info");
+  step("Digging through the startup graveyard", "info", "Who tried this before and didn't make it");
   step("Scoring design, trust, positioning and revenue", "info");
   step("Hunting for blind spots", "info", "The things you stopped seeing");
-  const analysis = await analyze(crawl, comps, market);
+  const [analysis, strategy] = await Promise.all([analyze(crawl, comps, market), strategize(crawl, comps, market)]);
+  step(
+    "Graveyard checked",
+    strategy.graveyard.length ? "ok" : "info",
+    (strategy.graveyard.length ? `${strategy.graveyard.length} confirmed shutdowns to learn from` : "No confirmed shutdowns in this exact space") +
+      (strategy.graveyardDropped ? ` · ${strategy.graveyardDropped} skipped because they're still running` : ""),
+  );
   step("Writing your landing page rewrite", "ok");
 
   const report: Report = {
@@ -151,9 +168,14 @@ export async function createReport(input: string, emit: Emit = () => {}): Promis
     domain: host,
     createdAt: new Date().toISOString(),
     ...analysis,
+    comparison: analysis.comparison.map((c) => ({ ...c, whyWinning: strategy.winners.find((w) => w.domain === c.domain)?.whyWinning })),
     category: market.category,
-    competitors: comps.map(({ name, domain, logo, headline, description }) => ({ name, domain, logo, headline, description })),
+    competitors: comps.map(({ name, domain, logo, headline, description, signals }) => ({ name, domain, logo, headline, description, signals })),
     trace,
+    selfSignals: signalsOf(h, pricing?.priceMentions),
+    idea: strategy.idea,
+    features: strategy.features,
+    graveyard: strategy.graveyard,
     site: {
       title: h.title,
       description: h.metaDescription || h.ogDescription,

@@ -56,6 +56,15 @@ export interface TraceLine {
   level: "ok" | "warn" | "info";
 }
 
+/** Facts read straight off a homepage, used for the page-vs-page matrix. */
+export interface PageSignals {
+  pricing: string[];
+  hasPricingPage: boolean;
+  freeOffer: boolean;
+  proof: number;
+  primaryCta: string;
+}
+
 /** A competitor we identified and actually read. */
 export interface Competitor {
   name: string;
@@ -63,14 +72,46 @@ export interface Competitor {
   logo: string;
   headline: string;
   description: string;
+  signals?: PageSignals;
 }
 
 /** Paid: how you stack up against one competitor. */
 export interface CompetitorInsight {
   domain: string;
+  whyWinning?: string;
   theyDoBetter: string;
   youDoBetter: string;
   steal: string;
+}
+
+/** Paid: the business itself, not just the page. */
+export interface IdeaRoast {
+  score: number;
+  verdict: string;
+  summary: string;
+  problem: string;
+  timing: string;
+  money: string;
+  moat: string;
+  distribution: string;
+  hardQuestion: string;
+  risks: string[];
+}
+
+/** Paid: what the product does vs what competitors offer. */
+export interface FeatureMap {
+  yours: string[];
+  gaps: { feature: string; who: string[]; why: string }[];
+  unique: string[];
+}
+
+/** Paid: startups in the same space that didn't make it, and the lesson. */
+export interface FailedStartup {
+  name: string;
+  years: string;
+  what: string;
+  whyFailed: string;
+  lesson: string;
 }
 
 /** Paid: the "how did I miss that?" findings. Free view shows only the first title. */
@@ -110,6 +151,11 @@ export interface Report {
   comparison: CompetitorInsight[];
   blindSpots: BlindSpot[];
   trace: TraceLine[];
+  /** The startup's own page signals, the first row of the page-vs-page matrix. */
+  selfSignals?: PageSignals;
+  idea?: IdeaRoast | null;
+  features?: FeatureMap | null;
+  graveyard?: FailedStartup[];
 }
 
 /** What an unpaid visitor is allowed to receive. Nothing from the paid sections leaves the server. */
@@ -129,7 +175,13 @@ export type FreeReport = Pick<
   | "category"
   | "competitors"
   | "trace"
-> & { blindSpotTeaser: string | null; blindSpotCount: number };
+  | "selfSignals"
+> & {
+  blindSpotTeaser: string | null;
+  blindSpotCount: number;
+  /** Counts only, so the free view can say what's inside without giving it away. */
+  teasers: { hasIdea: boolean; gaps: number; graveyard: number };
+};
 
 export function toFreeReport(r: Report): FreeReport {
   return {
@@ -147,8 +199,10 @@ export function toFreeReport(r: Report): FreeReport {
     category: r.category ?? "",
     competitors: r.competitors ?? [],
     trace: r.trace ?? [],
+    selfSignals: r.selfSignals,
     blindSpotTeaser: r.blindSpots?.[0]?.title ?? null,
     blindSpotCount: r.blindSpots?.length ?? 0,
+    teasers: { hasIdea: !!r.idea, gaps: r.features?.gaps.length ?? 0, graveyard: r.graveyard?.length ?? 0 },
   };
 }
 

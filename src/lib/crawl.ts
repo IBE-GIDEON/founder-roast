@@ -334,6 +334,15 @@ export function extract(html: string, pageUrl: URL, meta: { status: number; ms: 
 
   $("script, style, noscript, svg, template, iframe").remove();
 
+  // Headings: an aria-label holds the clean sentence when the visible heading is decorated
+  // (e.g. cal.com's H1 has an animated calendar widget inside it).
+  $("h1[aria-label], h2[aria-label], h3[aria-label]").each((_, el) => {
+    const label = $(el).attr("aria-label")?.trim();
+    if (label && label.length > 3) $(el).text(label);
+  });
+  // Decorative content hidden from screen readers isn't copy; don't read or roast it.
+  $('[aria-hidden="true"], [hidden]').remove();
+
   // Keep words apart: "Email for<br/>developers" must read "Email for developers", not "Email fordevelopers".
   // Spans are left alone so letter-by-letter animated headlines don't become "H e l l o".
   $("br, hr").replaceWith(" ");

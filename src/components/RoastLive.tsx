@@ -17,7 +17,7 @@ type Line = { key: number; text: string; detail?: string; level: Level };
 type Comp = { domain: string; name: string; logo: string; status: "found" | "read" | "failed"; headline?: string };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const EXPECTED_LINES = 17;
+const EXPECTED_LINES = 22;
 
 function prettyHost(raw: string) {
   try {

@@ -4,6 +4,17 @@ const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const PRIMARY_MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
 const FALLBACK_MODEL = process.env.GROQ_FALLBACK_MODEL || "openai/gpt-oss-20b";
 
+/**
+ * Groq's free tier allows ~8,000 tokens per minute *per model*, so the three calls in a roast are spread
+ * across two models: the page roast on the main model, market + business roast on the fast model.
+ * On a paid tier, set GROQ_STRATEGY_MODEL=openai/gpt-oss-120b for a sharper business roast.
+ */
+export const MODELS = {
+  main: PRIMARY_MODEL,
+  fast: process.env.GROQ_FAST_MODEL || "openai/gpt-oss-20b",
+  strategy: process.env.GROQ_STRATEGY_MODEL || process.env.GROQ_FAST_MODEL || "openai/gpt-oss-20b",
+};
+
 export class AnalyzeError extends Error {}
 
 export const groqEnabled = () => !!process.env.GROQ_API_KEY;
@@ -32,7 +43,10 @@ async function call(model: string, system: string, user: string, temperature: nu
       cache: "no-store",
     });
     const text = await res.text();
-    if (!res.ok) return { ok: false as const, status: res.status, error: text.slice(0, 400) };
+    if (!res.ok) {
+      const retryAfter = Number(res.headers.get("retry-after")) || 0;
+      return { ok: false as const, status: res.status, error: text.slice(0, 400), retryAfter };
+    }
     const data = JSON.parse(text) as { choices?: { message?: { content?: string } }[] };
     return { ok: true as const, content: data.choices?.[0]?.message?.content || "" };
   } catch (e) {
@@ -46,20 +60,38 @@ async function call(model: string, system: string, user: string, temperature: nu
 export async function groqJSON<T = Record<string, unknown>>(
   system: string,
   user: string,
-  opts: { temperature?: number; effort?: "low" | "medium" | "high"; maxTokens?: number; timeoutMs?: number; attempts?: number } = {},
+  opts: {
+    temperature?: number;
+    effort?: "low" | "medium" | "high";
+    maxTokens?: number;
+    timeoutMs?: number;
+    attempts?: number;
+    model?: string;
+    fallbackModel?: string;
+  } = {},
 ): Promise<T> {
   const { temperature = 0.6, effort = "medium", maxTokens = 6000, timeoutMs = 60_000, attempts = 3 } = opts;
+  const model1 = opts.model || PRIMARY_MODEL;
+  const model2 = opts.fallbackModel || (model1 === FALLBACK_MODEL ? PRIMARY_MODEL : FALLBACK_MODEL);
   const plan: [string, number][] = [
-    [PRIMARY_MODEL, temperature],
-    [PRIMARY_MODEL, Math.max(0.2, temperature - 0.3)],
-    [FALLBACK_MODEL, temperature],
+    [model1, temperature],
+    [model1, Math.max(0.2, temperature - 0.3)],
+    [model2, temperature],
   ].slice(0, attempts) as [string, number][];
 
-  for (const [model, temp] of plan) {
+  for (let i = 0; i < plan.length; i++) {
+    const [model, temp] = plan[i];
     const res = await call(model, system, user, temp, effort, maxTokens, timeoutMs);
     if (!res.ok) {
       console.error("[groq]", model, res.status, res.error);
       if (res.status === 401) throw new AnalyzeError("Groq rejected the API key.");
+      // Too large for this model's per-minute budget: retrying the same model can't help, jump to the other one.
+      if (res.status === 413 && plan[i + 1]?.[0] === model) i++;
+      // Rate limited: wait as long as Groq asks (capped), then move on to the next attempt.
+      if (res.status === 429) {
+        const wait = Math.min(Math.max(("retryAfter" in res ? res.retryAfter : 0) || 5, 1), 25);
+        await new Promise((r) => setTimeout(r, wait * 1000));
+      }
       continue;
     }
     try {

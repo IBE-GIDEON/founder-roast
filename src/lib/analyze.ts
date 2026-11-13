@@ -1,7 +1,7 @@
 import "server-only";
 import type { CompetitorRead, MarketGuess } from "./competitors";
 import type { CrawlResult, PageData } from "./crawl";
-import { AnalyzeError, groqEnabled, groqJSON } from "./groq";
+import { AnalyzeError, groqEnabled, groqJSON, MODELS } from "./groq";
 import { IS_PROD } from "./site";
 import {
   SCORE_KEYS,
@@ -100,13 +100,13 @@ export function pageDump(c: CrawlResult): string {
     `<meta_description>${h.metaDescription || h.ogDescription}</meta_description>`,
     `<h1_headings count="${h.h1.length}">${list(h.h1)}</h1_headings>`,
     `<h2_section_headings count="${h.h2.length}">${list(h.h2)}</h2_section_headings>`,
-    `<h3_subheadings count="${h.h3.length}">${list(h.h3)}</h3_subheadings>`,
-    `<nav_links>${list(h.navLinks)}</nav_links>`,
-    `<buttons_and_ctas>${list(h.ctas)}</buttons_and_ctas>`,
-    `<homepage_text>${(c.renderedText || h.bodyText).slice(0, 6500)}</homepage_text>`,
+    `<h3_subheadings count="${h.h3.length}">${list(h.h3.slice(0, 10))}</h3_subheadings>`,
+    `<nav_links>${list(h.navLinks.slice(0, 10))}</nav_links>`,
+    `<buttons_and_ctas>${list(h.ctas.slice(0, 8))}</buttons_and_ctas>`,
+    `<homepage_text>${(c.renderedText || h.bodyText).slice(0, 3800)}</homepage_text>`,
   ];
   for (const p of c.extraPages) {
-    parts.push(`<${p.kind}_page url="${p.url}">H1: ${p.h1.join(" | ")}\nH2: ${p.h2.join(" | ")}\nPrices: ${p.priceMentions.join(", ")}\n${p.text}</${p.kind}_page>`);
+    parts.push(`<${p.kind}_page url="${p.url}">H1: ${p.h1.join(" | ")}\nPrices: ${p.priceMentions.join(", ")}\n${p.text.slice(0, 1100)}</${p.kind}_page>`);
   }
   return parts.join("\n");
 }
@@ -120,9 +120,9 @@ function competitorDump(comps: CompetitorRead[], market: MarketGuess): string {
       [
         `<competitor name="${c.name}" domain="${c.domain}">`,
         `headline: ${c.headline}`,
-        `description: ${c.description}`,
-        `section headings: ${c.h2.map((t) => `"${t}"`).join(", ")}`,
-        `ctas: ${c.ctas.map((t) => `"${t}"`).join(", ")}`,
+        `description: ${c.description.slice(0, 180)}`,
+        `section headings: ${c.h2.slice(0, 5).map((t) => `"${t}"`).join(", ")}`,
+        `ctas: ${c.ctas.slice(0, 3).map((t) => `"${t}"`).join(", ")}`,
         `prices: ${c.priceMentions.join(", ") || "none on homepage"}`,
         `trust: ${c.trustPhrases.join(", ") || "none detected"}`,
         `</competitor>`,
@@ -145,7 +145,7 @@ YOUR JOB IS THE "AHA". The founder has already heard generic advice ("add testim
 ACCURACY RULES (a wrong claim destroys the whole report):
 - Headings are given as numbered lists: each numbered line is a separate heading. Never treat the list as one long heading.
 - Signals come from automated extraction and can miss things (e.g. content loaded by JavaScript, a single /legal page). Only state that something is missing when the signals AND the page text both show it, and phrase it as "we couldn't find X" rather than "X doesn't exist".
-- Treat odd spacing or truncation in extracted text as an extraction artifact, never as the site's typo.
+- Treat odd spacing or truncation in extracted text as an extraction artifact, never as the site's typo. If a headline contains fragments that look like UI widget text (times like "12:30 PM", durations like "30m", button labels), that's an embedded animation: judge the headline by its readable sentence only and never quote the fragments.
 - Never invent numbers, guarantees, SLAs, percentages, customer names, logos or claims the company hasn't made. This applies everywhere, including the rewrite's proofLine. Use placeholders like [X customers] or [99.X% uptime] for anything not stated on their page.
 - Write evidence the way a visitor would describe the page ("your homepage shows no price", "the hero buttons are 'Get started' and 'Download ZIP'"). Never mention our internal data labels such as signals, price_mentions, trust_phrases, buttons_and_ctas or heuristic scores.
 
@@ -395,6 +395,13 @@ export async function analyze(c: CrawlResult, comps: CompetitorRead[], market: M
     return fallback;
   }
   const user = `<site_data>\n<signals>\n${signalLines(c)}\n</signals>\n${pageDump(c)}\n${competitorDump(comps, market)}\n</site_data>\n\nRoast this landing page against its competitors. Find the aha moments. JSON only.`;
-  const raw = await groqJSON(SYSTEM, user, { temperature: 0.7, effort: "medium", maxTokens: 7000, timeoutMs: 70_000 });
+  const raw = await groqJSON(SYSTEM, user, {
+    temperature: 0.7,
+    effort: "medium",
+    maxTokens: 6000,
+    timeoutMs: 70_000,
+    model: MODELS.main,
+    fallbackModel: MODELS.fast,
+  });
   return sanitize(raw, fallback, comps);
 }

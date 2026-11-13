@@ -1,8 +1,13 @@
 import Link from "next/link";
 import {
   AlertTriangle,
+  Boxes,
   Check,
   CheckCircle2,
+  Columns3,
+  Lightbulb,
+  Minus,
+  Skull,
   Download,
   Eye,
   FileText,
@@ -42,7 +47,11 @@ type Props = {
 const NAV = [
   { id: "overview", label: "Overview", icon: LayoutDashboard, paid: false },
   { id: "blind-spots", label: "Blind spots", icon: Eye, paid: true },
+  { id: "idea", label: "The idea", icon: Lightbulb, paid: true },
   { id: "competitors", label: "Competitors", icon: Swords, paid: true },
+  { id: "page-vs-page", label: "Page vs page", icon: Columns3, paid: false },
+  { id: "features", label: "Features", icon: Boxes, paid: true },
+  { id: "graveyard", label: "Graveyard", icon: Skull, paid: true },
   { id: "scores", label: "Scores", icon: Gauge, paid: true },
   { id: "growth", label: "Growth plan", icon: Rocket, paid: true },
   { id: "rewrite", label: "Rewrite", icon: PenLine, paid: true },
@@ -100,6 +109,14 @@ export function ReportView({ free, full, price, shareUrl, tweet, cardUrl, pdfUrl
   const unlocked = !!full;
   const date = new Date(free.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   const compNames = free.competitors.map((c) => c.name);
+  // Only list sections that exist for this report.
+  const present: Record<string, boolean> = {
+    idea: free.teasers.hasIdea,
+    "page-vs-page": !!free.selfSignals && free.competitors.some((c) => c.signals),
+    features: free.teasers.gaps > 0 || !!full?.features,
+    graveyard: free.teasers.graveyard > 0,
+  };
+  const nav = NAV.filter((n) => present[n.id] ?? true);
 
   return (
     <div className="min-h-screen bg-bg">
@@ -133,7 +150,7 @@ export function ReportView({ free, full, price, shareUrl, tweet, cardUrl, pdfUrl
         <aside className="hidden lg:block">
           <nav className="sticky top-24" aria-label="Report sections">
             <ul className="space-y-0.5">
-              {NAV.map(({ id, label, icon: Icon, paid }) => (
+              {nav.map(({ id, label, icon: Icon, paid }) => (
                 <li key={id}>
                   <a href={`#${id}`} className="flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13.5px] text-ink-2 transition-colors hover:bg-white hover:text-ink">
                     <Icon size={15} className="text-faint" aria-hidden="true" />
@@ -198,15 +215,18 @@ export function ReportView({ free, full, price, shareUrl, tweet, cardUrl, pdfUrl
                 </div>
               </div>
 
-              <dl className="grid grid-cols-2 border-t border-line sm:grid-cols-4">
-                {SCORE_KEYS.map((k, i) => (
-                  <div key={k} className={`px-6 py-4 ${i % 2 ? "border-l border-line" : ""} ${i >= 2 ? "border-t border-line sm:border-t-0" : ""} ${i === 2 ? "sm:border-l" : ""}`}>
-                    <dt className="text-[11px] font-medium uppercase tracking-[0.08em] text-faint">{SCORE_META[k].label}</dt>
+              <dl className={`grid grid-cols-2 divide-line border-t border-line sm:divide-x ${free.teasers.hasIdea ? "sm:grid-cols-5" : "sm:grid-cols-4"}`}>
+                {[
+                  ...(free.teasers.hasIdea ? [{ key: "idea", label: "Idea", score: full?.idea?.score }] : []),
+                  ...SCORE_KEYS.map((k) => ({ key: k, label: SCORE_META[k].label, score: full?.scores[k].score })),
+                ].map((m, i) => (
+                  <div key={m.key} className={`px-6 py-4 ${i % 2 ? "border-l border-line sm:border-l-0" : ""} ${i >= 2 ? "border-t border-line sm:border-t-0" : ""}`}>
+                    <dt className="text-[11px] font-medium uppercase tracking-[0.08em] text-faint">{m.label}</dt>
                     <dd className="mt-1.5 flex items-baseline gap-1">
-                      {full ? (
+                      {typeof m.score === "number" ? (
                         <>
-                          <span className="text-[24px] font-semibold tabular-nums tracking-[-0.02em]" style={{ color: scoreColor(full.scores[k].score) }}>
-                            {full.scores[k].score}
+                          <span className="text-[24px] font-semibold tabular-nums tracking-[-0.02em]" style={{ color: scoreColor(m.score) }}>
+                            {m.score}
                           </span>
                           <span className="text-[12px] text-faint">/100</span>
                         </>
@@ -233,7 +253,17 @@ export function ReportView({ free, full, price, shareUrl, tweet, cardUrl, pdfUrl
                     {free.blindSpotCount ? `${free.blindSpotCount} blind spots found on ${free.domain}.` : `Your full report on ${free.domain} is ready.`}
                   </p>
                   <p className="mt-0.5 text-[13px] text-white/60">
-                    {compNames.length ? `Teardown vs ${compNames.join(", ")}, ` : ""}four scores, a growth plan and a rewritten hero. PDF included.
+                    {[
+                      free.teasers.hasIdea ? "An idea roast" : null,
+                      compNames.length ? `teardown vs ${compNames.join(", ")}` : null,
+                      free.teasers.gaps ? `${free.teasers.gaps} feature gaps` : null,
+                      free.teasers.graveyard ? `${free.teasers.graveyard} failed startups to learn from` : null,
+                      "scores, a growth plan and a rewritten hero",
+                    ]
+                      .filter(Boolean)
+                      .join(", ")
+                      .replace(/^./, (c) => c.toUpperCase())}
+                    . PDF included.
                   </p>
                 </div>
                 <UnlockButton id={free.id} price={price} variant="light" />
@@ -295,6 +325,62 @@ export function ReportView({ free, full, price, shareUrl, tweet, cardUrl, pdfUrl
             )}
           </section>
 
+          {/* ── The idea ─────────────────────────── */}
+          {free.teasers.hasIdea && (
+            <section>
+              <SectionHead id="idea" title="The idea" meta="Problem · timing · money · moat · distribution" locked={!unlocked} />
+              {full?.idea ? (
+                <div className="overflow-hidden rounded-lg border border-line bg-white">
+                  <div className="flex items-start justify-between gap-6 px-5 py-5">
+                    <div>
+                      <p className="text-[15.5px] font-semibold tracking-[-0.01em] text-ink">{full.idea.verdict}</p>
+                      <p className="mt-1 max-w-[620px] text-[13.5px] leading-relaxed text-muted">{full.idea.summary}</p>
+                    </div>
+                    <span className="shrink-0 text-[28px] font-semibold leading-none tabular-nums tracking-[-0.02em]" style={{ color: scoreColor(full.idea.score) }}>
+                      {full.idea.score}
+                    </span>
+                  </div>
+                  <dl className="grid border-t border-line sm:grid-cols-2">
+                    {(
+                      [
+                        ["Problem", full.idea.problem],
+                        ["Timing", full.idea.timing],
+                        ["Money", full.idea.money],
+                        ["Moat", full.idea.moat],
+                        ["Distribution", full.idea.distribution],
+                      ] as const
+                    )
+                      .filter(([, v]) => v)
+                      .map(([k, v], i) => (
+                        <div key={k} className={`border-line px-5 py-4 ${i ? "border-t" : ""} ${i === 1 ? "sm:border-t-0" : ""} ${i % 2 ? "sm:border-l" : ""}`}>
+                          <dt className="text-[11px] font-medium uppercase tracking-[0.08em] text-faint">{k}</dt>
+                          <dd className="mt-1 text-[13.5px] leading-relaxed text-ink-2">{v}</dd>
+                        </div>
+                      ))}
+                  </dl>
+                  {full.idea.hardQuestion && (
+                    <div className="border-t border-line bg-[#fafbfc] px-5 py-4">
+                      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-faint">The question an investor will ask</p>
+                      <p className="mt-1 border-l-2 border-ink pl-3 text-[14px] font-medium text-ink">{full.idea.hardQuestion}</p>
+                    </div>
+                  )}
+                  {full.idea.risks.length > 0 && (
+                    <ul className="space-y-1.5 border-t border-line px-5 py-4">
+                      {full.idea.risks.map((r) => (
+                        <li key={r} className="flex gap-2 text-[13px] leading-relaxed text-muted">
+                          <AlertTriangle size={14} className="mt-[3px] shrink-0 text-[#dc6803]" aria-hidden="true" />
+                          {r}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ) : (
+                <Locked id={free.id} price={price} rows={3} label="Idea score, the hard question and top risks" />
+              )}
+            </section>
+          )}
+
           {/* ── Competitors ──────────────────────── */}
           <section>
             <SectionHead id="competitors" title="Competitors" meta={free.competitors.length ? `${free.competitors.length} compared` : undefined} locked={!unlocked} />
@@ -318,8 +404,9 @@ export function ReportView({ free, full, price, shareUrl, tweet, cardUrl, pdfUrl
                         </div>
                       </div>
                       {insight ? (
-                        <dl className="mt-4 grid gap-px overflow-hidden rounded-md border border-line bg-line md:grid-cols-3">
+                        <dl className={`mt-4 grid gap-px overflow-hidden rounded-md border border-line bg-line ${insight.whyWinning ? "md:grid-cols-2" : "md:grid-cols-3"}`}>
                           {[
+                            ...(insight.whyWinning ? [["Why they're winning", insight.whyWinning]] : []),
                             ["They do better", insight.theyDoBetter],
                             ["Where you win", insight.youDoBetter],
                             ["Steal this", insight.steal],
@@ -353,6 +440,133 @@ export function ReportView({ free, full, price, shareUrl, tweet, cardUrl, pdfUrl
               <p className="rounded-lg border border-line bg-white px-5 py-4 text-[13.5px] text-muted">We couldn&apos;t confidently identify and read competitors for this site.</p>
             )}
           </section>
+
+          {/* ── Page vs page (free: objective facts read off each site) ── */}
+          {free.selfSignals && free.competitors.some((c) => c.signals) && (
+            <section>
+              <SectionHead id="page-vs-page" title="Page vs page" meta="Read straight off each homepage" />
+              <div className="overflow-x-auto rounded-lg border border-line bg-white">
+                <table className="w-full min-w-[640px] text-left text-[13px]">
+                  <thead className="border-b border-line bg-[#fafbfc] text-[11px] font-medium uppercase tracking-[0.08em] text-faint">
+                    <tr>
+                      <th className="px-5 py-2.5 font-medium">Site</th>
+                      <th className="px-4 py-2.5 font-medium">Prices shown</th>
+                      <th className="px-4 py-2.5 font-medium">Free plan or trial</th>
+                      <th className="px-4 py-2.5 font-medium">Proof on page</th>
+                      <th className="px-4 py-2.5 font-medium">Main button</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-line">
+                    {[
+                      { name: "You", domain: free.domain, s: free.selfSignals, you: true },
+                      ...free.competitors.filter((c) => c.signals).map((c) => ({ name: c.name, domain: c.domain, s: c.signals!, you: false })),
+                    ].map((row) => (
+                      <tr key={row.domain} className={row.you ? "bg-[#f7f9fc]" : ""}>
+                        <td className="px-5 py-3">
+                          <div className="flex items-center gap-2">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(row.domain)}&sz=64`} alt="" width={16} height={16} className="h-4 w-4 rounded-sm" referrerPolicy="no-referrer" />
+                            <span className="font-medium text-ink">{row.name}</span>
+                            {row.you && <span className="font-mono text-[11px] text-faint">{row.domain}</span>}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-ink-2">{row.s.pricing[0] || (row.s.hasPricingPage ? "On pricing page" : <Minus size={14} className="text-faint" aria-label="No" />)}</td>
+                        <td className="px-4 py-3">{row.s.freeOffer ? <Check size={15} strokeWidth={2.5} className="text-[#12b76a]" aria-label="Yes" /> : <Minus size={14} className="text-faint" aria-label="No" />}</td>
+                        <td className="px-4 py-3 tabular-nums text-ink-2">{row.s.proof ? `${row.s.proof} signals` : <Minus size={14} className="text-faint" aria-label="None" />}</td>
+                        <td className="max-w-[180px] truncate px-4 py-3 text-ink-2">{row.s.primaryCta ? `“${row.s.primaryCta}”` : <Minus size={14} className="text-faint" aria-label="None" />}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
+          {/* ── Features ─────────────────────────── */}
+          {(free.teasers.gaps > 0 || full?.features) && (
+            <section>
+              <SectionHead id="features" title="Features" meta={free.teasers.gaps ? `${free.teasers.gaps} gaps vs competitors` : undefined} locked={!unlocked} />
+              {full?.features ? (
+                <div className="overflow-hidden rounded-lg border border-line bg-white">
+                  <div className="px-5 py-4">
+                    <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-faint">What you offer</p>
+                    <ul className="mt-2 flex flex-wrap gap-1.5">
+                      {full.features.yours.map((f) => (
+                        <li key={f} className="rounded-md border border-line px-2 py-0.5 text-[12.5px] text-ink-2">
+                          {f}
+                        </li>
+                      ))}
+                    </ul>
+                    {full.features.unique.length > 0 && (
+                      <p className="mt-3 text-[12.5px] text-muted">
+                        <span className="font-medium text-ink">Only you:</span> {full.features.unique.join(", ")}
+                      </p>
+                    )}
+                  </div>
+                  {full.features.gaps.length > 0 && (
+                    <table className="w-full border-t border-line text-left text-[13px]">
+                      <thead className="border-b border-line bg-[#fafbfc] text-[11px] font-medium uppercase tracking-[0.08em] text-faint">
+                        <tr>
+                          <th className="px-5 py-2.5 font-medium">They have, you don&apos;t</th>
+                          <th className="hidden px-4 py-2.5 font-medium sm:table-cell">Who</th>
+                          <th className="px-4 py-2.5 font-medium">Why it matters</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-line">
+                        {full.features.gaps.map((g) => (
+                          <tr key={g.feature}>
+                            <td className="px-5 py-3 font-medium text-ink">
+                              {g.feature}
+                              <span className="mt-0.5 block text-[12px] font-normal text-faint sm:hidden">{g.who.join(", ")}</span>
+                            </td>
+                            <td className="hidden px-4 py-3 text-ink-2 sm:table-cell">{g.who.join(", ")}</td>
+                            <td className="px-4 py-3 text-muted">{g.why}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              ) : (
+                <Locked id={free.id} price={price} rows={3} label={`${free.teasers.gaps} features they have that you don't`} />
+              )}
+            </section>
+          )}
+
+          {/* ── Graveyard ────────────────────────── */}
+          {(free.teasers.graveyard > 0 || (full?.graveyard?.length ?? 0) > 0) && (
+            <section>
+              <SectionHead id="graveyard" title="Graveyard" meta={`${free.teasers.graveyard} startups that didn't make it`} locked={!unlocked} />
+              {full?.graveyard?.length ? (
+                <>
+                  <ol className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-white">
+                    {full.graveyard.map((g) => (
+                      <li key={g.name} className="px-5 py-4">
+                        <div className="flex flex-wrap items-baseline gap-x-2">
+                          <p className="text-[14.5px] font-semibold text-ink">{g.name}</p>
+                          {g.years && <span className="font-mono text-[12px] text-faint">{g.years}</span>}
+                        </div>
+                        <p className="mt-0.5 text-[13px] text-muted">{g.what}</p>
+                        <dl className="mt-3 grid gap-4 md:grid-cols-2">
+                          <div>
+                            <dt className="text-[11px] font-medium uppercase tracking-[0.08em] text-faint">What went wrong</dt>
+                            <dd className="mt-1 text-[13px] leading-relaxed text-ink-2">{g.whyFailed}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-[11px] font-medium uppercase tracking-[0.08em] text-faint">Don&apos;t repeat it</dt>
+                            <dd className="mt-1 text-[13px] leading-relaxed text-ink-2">{g.lesson}</dd>
+                          </div>
+                        </dl>
+                      </li>
+                    ))}
+                  </ol>
+                  <p className="mt-2 text-[12px] text-faint">Based on public reporting about these companies. Verify before citing.</p>
+                </>
+              ) : (
+                <Locked id={free.id} price={price} rows={2} label={`${free.teasers.graveyard} failed startups and what killed them`} />
+              )}
+            </section>
+          )}
 
           {/* ── Scores ───────────────────────────── */}
           <section>

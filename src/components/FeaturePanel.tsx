@@ -27,11 +27,12 @@ import {
 import { useEffect, useState } from "react";
 
 const ITEMS: { title: string; body: string; tiles: number[] }[] = [
+  { title: "The idea roast", body: "Problem, timing, money, moat.", tiles: [4, 9, 14, 16] },
   { title: "Blind spots", body: "The things you stopped seeing.", tiles: [2, 8, 13, 17] },
-  { title: "Competitor teardown", body: "You vs. your top rivals, side by side.", tiles: [3, 9, 14, 18] },
-  { title: "Four scores", body: "Design, trust, positioning, revenue.", tiles: [0, 6, 10, 15] },
-  { title: "Growth plan", body: "Ranked by impact. Ship the top three.", tiles: [4, 11, 16, 19] },
-  { title: "Landing page rewrite", body: "A new hero you can paste today.", tiles: [1, 5, 7, 11] },
+  { title: "Competitor teardown", body: "Why the winners win.", tiles: [3, 9, 14, 18] },
+  { title: "Feature gaps", body: "What they offer that you don't.", tiles: [0, 6, 10, 15] },
+  { title: "The graveyard", body: "Who tried this before, and why they died.", tiles: [5, 11, 17, 19] },
+  { title: "Rewrite and growth plan", body: "A new hero and your next moves.", tiles: [1, 5, 7, 11] },
 ];
 
 const TILES: { icon: LucideIcon; color: string }[] = [

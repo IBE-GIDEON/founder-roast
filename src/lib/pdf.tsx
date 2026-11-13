@@ -146,6 +146,7 @@ function ReportPdf({ r, host }: { r: Report; host: string }) {
                     {c.name} <Text style={{ color: muted, fontFamily: "Helvetica", fontSize: 10 }}>· {c.domain}</Text>
                   </Text>
                   <Text style={[s.p, { color: muted, marginTop: 3 }]}>Their headline: “{c.headline}”</Text>
+                  {ins?.whyWinning ? <Text style={[s.p, { marginTop: 3 }]}>Why they&apos;re winning: {ins.whyWinning}</Text> : null}
                   {ins && (
                     <View style={{ flexDirection: "row", gap: 10, marginTop: 6 }}>
                       {[
@@ -168,12 +169,92 @@ function ReportPdf({ r, host }: { r: Report; host: string }) {
         <Footer host={host} domain={r.domain} />
       </Page>
 
+      {/* The business: idea, features, graveyard */}
+      {(r.idea || r.features || (r.graveyard?.length ?? 0) > 0) && (
+        <Page size="A4" style={s.page}>
+          <Text style={s.watermark} fixed>
+            {host}
+          </Text>
+          <Text style={s.eyebrow}>Part 3</Text>
+          <Text style={[s.h2, { marginBottom: 14 }]}>The business</Text>
+          {r.idea && (
+            <View style={s.growth} wrap={false}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+                <Text style={{ fontSize: 13, fontFamily: "Helvetica-Bold", flex: 1 }}>The idea: {r.idea.verdict}</Text>
+                <Text style={{ fontSize: 18, fontFamily: "Helvetica-Bold", color: scoreColor(r.idea.score) }}>{r.idea.score}</Text>
+              </View>
+              <Text style={[s.p, { color: muted }]}>{r.idea.summary}</Text>
+              {(
+                [
+                  ["Problem", r.idea.problem],
+                  ["Timing", r.idea.timing],
+                  ["Money", r.idea.money],
+                  ["Moat", r.idea.moat],
+                  ["Distribution", r.idea.distribution],
+                ] as const
+              )
+                .filter(([, v]) => v)
+                .map(([k, v]) => (
+                  <Text key={k} style={s.p}>
+                    <Text style={{ fontFamily: "Helvetica-Bold" }}>{k}: </Text>
+                    {v}
+                  </Text>
+                ))}
+              {r.idea.hardQuestion ? (
+                <Text style={[s.p, { marginTop: 4 }]}>
+                  <Text style={{ fontFamily: "Helvetica-Bold" }}>The investor question: </Text>
+                  {r.idea.hardQuestion}
+                </Text>
+              ) : null}
+              {r.idea.risks.length > 0 && <Bullets items={r.idea.risks} />}
+            </View>
+          )}
+          {r.features && (
+            <View style={s.growth} wrap={false}>
+              <Text style={{ fontSize: 13, fontFamily: "Helvetica-Bold", marginBottom: 6 }}>Features</Text>
+              <Text style={s.p}>
+                <Text style={{ fontFamily: "Helvetica-Bold" }}>You offer: </Text>
+                {r.features.yours.join(", ")}
+              </Text>
+              {r.features.unique.length > 0 && (
+                <Text style={s.p}>
+                  <Text style={{ fontFamily: "Helvetica-Bold" }}>Only you: </Text>
+                  {r.features.unique.join(", ")}
+                </Text>
+              )}
+              {r.features.gaps.map((g) => (
+                <Text key={g.feature} style={s.p}>
+                  <Text style={{ fontFamily: "Helvetica-Bold" }}>Gap: {g.feature}</Text> ({g.who.join(", ")}). {g.why}
+                </Text>
+              ))}
+            </View>
+          )}
+          {(r.graveyard?.length ?? 0) > 0 && (
+            <View>
+              <Text style={{ fontSize: 13, fontFamily: "Helvetica-Bold", marginTop: 6, marginBottom: 8 }}>The graveyard</Text>
+              {r.graveyard!.map((g) => (
+                <View key={g.name} style={s.growth} wrap={false}>
+                  <Text style={{ fontSize: 12, fontFamily: "Helvetica-Bold" }}>
+                    {g.name} <Text style={{ color: muted, fontFamily: "Helvetica", fontSize: 10 }}>{g.years}</Text>
+                  </Text>
+                  <Text style={[s.p, { color: muted }]}>{g.what}</Text>
+                  <Text style={s.p}>What went wrong: {g.whyFailed}</Text>
+                  <Text style={s.p}>Don&apos;t repeat it: {g.lesson}</Text>
+                </View>
+              ))}
+              <Text style={{ fontSize: 8.5, color: muted }}>Based on public reporting about these companies.</Text>
+            </View>
+          )}
+          <Footer host={host} domain={r.domain} />
+        </Page>
+      )}
+
       {/* Scores */}
       <Page size="A4" style={s.page}>
         <Text style={s.watermark} fixed>
           {host}
         </Text>
-        <Text style={s.eyebrow}>Part 3</Text>
+        <Text style={s.eyebrow}>Part 4</Text>
         <Text style={[s.h2, { marginBottom: 18 }]}>The four scores</Text>
         {SCORE_KEYS.map((k) => {
           const sc = r.scores[k];
@@ -208,7 +289,7 @@ function ReportPdf({ r, host }: { r: Report; host: string }) {
         <Text style={s.watermark} fixed>
           {host}
         </Text>
-        <Text style={s.eyebrow}>Part 4</Text>
+        <Text style={s.eyebrow}>Part 5</Text>
         <Text style={[s.h2, { marginBottom: 18 }]}>Growth plan</Text>
         {r.growth.map((g, i) => (
           <View key={i} style={s.growth} wrap={false}>
@@ -230,7 +311,7 @@ function ReportPdf({ r, host }: { r: Report; host: string }) {
         <Text style={s.watermark} fixed>
           {host}
         </Text>
-        <Text style={s.eyebrow}>Part 5</Text>
+        <Text style={s.eyebrow}>Part 6</Text>
         <Text style={s.h2}>Landing page rewrite</Text>
         <Text style={[s.p, { color: muted }]}>Copy you can paste into your hero today. Replace anything in [brackets] with your real numbers.</Text>
         <View style={s.rewriteBox}>

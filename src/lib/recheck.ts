@@ -4,9 +4,9 @@ import { overallFrom, pageDump, signalLines } from "./analyze";
 import { CrawlError, crawlSite, type CrawlResult } from "./crawl";
 import { AnalyzeError, groqEnabled, groqJSON } from "./groq";
 import { getReport, newId, type RoastEvent } from "./reports";
-import { IS_PROD, RECHECK_REFUND_CENTS } from "./site";
+import { IS_PROD, money, RECHECK_REFUND_CENTS } from "./site";
 import { getJSON, setJSON, store } from "./store";
-import { refundCapture } from "./paypal";
+import { refundTransaction } from "./paystack";
 import { SCORE_KEYS, SCORE_META, type Report, type ScoreKey, type TraceLine } from "./types";
 
 /**
@@ -18,10 +18,8 @@ import { SCORE_KEYS, SCORE_META, type Report, type ScoreKey, type TraceLine } fr
 export interface RecheckPayment {
   token: string;
   reportId: string;
-  /** PayPal order id */
-  orderId: string | null;
-  /** PayPal capture id, needed to refund */
-  captureId: string | null;
+  /** Paystack transaction reference (used to verify and to refund). Null in dev mode. */
+  reference: string | null;
   amount: number;
   dev: boolean;
   createdAt: string;
@@ -68,7 +66,7 @@ const DAY = 60 * 60 * 24;
 // ── storage ──────────────────────────────────────────────────────────
 
 export async function createRecheckPayment(p: Omit<RecheckPayment, "token" | "createdAt">): Promise<RecheckPayment> {
-  const token = p.orderId ? `pp_${p.orderId}` : `dev_${randomBytes(9).toString("base64url")}`;
+  const token = p.reference ? `ps_${p.reference.replace(/[^A-Za-z0-9-]/g, "")}` : `dev_${randomBytes(9).toString("base64url")}`;
   const existing = await getRecheckPayment(token);
   if (existing) return existing;
   const rec: RecheckPayment = { ...p, token, createdAt: new Date().toISOString() };
@@ -77,7 +75,7 @@ export async function createRecheckPayment(p: Omit<RecheckPayment, "token" | "cr
 }
 
 export const getRecheckPayment = (token: string) =>
-  /^[A-Za-z0-9_-]{6,40}$/.test(token) ? getJSON<RecheckPayment>(`recheckpay:${token}`) : Promise.resolve(null);
+  /^[A-Za-z0-9_-]{6,90}$/.test(token) ? getJSON<RecheckPayment>(`recheckpay:${token}`) : Promise.resolve(null);
 
 export const getRecheck = (id: string) => (/^[A-Za-z0-9]{6,20}$/.test(id) ? getJSON<Recheck>(`recheck:${id}`) : Promise.resolve(null));
 
@@ -185,12 +183,11 @@ function rescore(r: Report, items: CheckItem[]) {
 async function refundHalf(p: RecheckPayment): Promise<Recheck["refund"]> {
   const amount = Math.min(RECHECK_REFUND_CENTS, Math.floor(p.amount / 2));
   if (p.dev) return { amount, status: "simulated" };
-  if (!p.captureId) return { amount, status: "failed" };
+  if (!p.reference) return { amount, status: "failed" };
   try {
-    const refund = await refundCapture(
-      p.captureId,
+    const refund = await refundTransaction(
+      p.reference,
       amount,
-      `fixcheck-half-${p.token}`,
       "Everything from your roast is fixed. Here's half your fix check back. Your landing page is up to date.",
     );
     return { amount, status: "refunded", id: refund.id };
@@ -265,7 +262,7 @@ export async function runRecheck(token: string, emit: (e: RoastEvent) => void): 
       step("All clear. Nothing left to fix", "ok", "Your landing page is up to date.");
       refund = await refundHalf(pay);
       if (refund.status === "refunded" || refund.status === "simulated") {
-        step(`Refunding half your fix check`, "ok", `$${(refund.amount / 100).toFixed(2)} back to your card${refund.status === "simulated" ? " (dev mode: simulated)" : ""}`);
+        step(`Refunding half your fix check`, "ok", `${money(refund.amount)} back to your card${refund.status === "simulated" ? " (dev mode: simulated)" : ""}`);
       } else {
         step("Refund needs a manual review", "warn", "We'll process your half refund by hand.");
       }

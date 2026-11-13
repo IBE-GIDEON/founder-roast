@@ -78,7 +78,7 @@ export default async function Home() {
             Get your startup roasted.
           </h1>
           <p className="mx-auto mt-4 max-w-[500px] text-[16px] leading-relaxed text-ink/65 sm:text-[17px]">
-            Paste your URL. AI tears apart your design, trust, positioning and revenue potential, then tells you exactly what to fix.
+            Paste your URL. AI roasts your idea, your page and your product against the competitors who won and the ones who died, then tells you exactly what to fix.
           </p>
           <div id="roast" className="mx-auto mt-8 max-w-[600px] scroll-mt-24">
             <RoastForm />
@@ -190,7 +190,7 @@ export default async function Home() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col rounded-xl bg-white p-6 ring-1 ring-line">
               <p className="text-[14px] font-semibold text-ink">Free roast</p>
-              <p className="mt-3 text-[40px] font-semibold leading-none tracking-display">$0</p>
+              <p className="mt-3 text-[40px] font-semibold leading-none tracking-display">Free</p>
               <ul className="mt-6 flex-1 space-y-2.5 text-[14px] text-ink-2">
                 {["Overall score out of 100", "One-line verdict", "Shareable roast for X", "No signup"].map((f) => (
                   <li key={f} className="flex gap-2">
@@ -219,11 +219,11 @@ export default async function Home() {
               </p>
               <ul className="relative mt-6 flex-1 space-y-2.5 text-[14px] text-white/85">
                 {[
-                  "Your blind spots, with evidence",
-                  "Teardown vs your top competitors",
-                  "4 scores with every issue and fix",
-                  "Growth plan and rewritten hero",
-                  "Branded PDF for your team",
+                  "Idea roast and the investor question",
+                  "Blind spots, with evidence",
+                  "Teardown vs winners, lessons from failures",
+                  "Feature gaps and four page scores",
+                  "Rewritten hero, growth plan and PDF",
                 ].map((f) => (
                   <li key={f} className="flex gap-2">
                     <Check size={16} className="mt-0.5 shrink-0 text-sky-2" aria-hidden="true" />
@@ -251,7 +251,7 @@ export default async function Home() {
           {[
             ["~45s", "from URL to score"],
             ["40+", "signals checked per roast"],
-            ["6", "sections in every full report"],
+            ["8", "sections in every full report"],
           ].map(([n, l]) => (
             <div key={l} className="border-t border-line pt-6">
               <p className="text-[48px] font-semibold leading-none tracking-display">{n}</p>

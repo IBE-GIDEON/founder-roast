@@ -1,6 +1,16 @@
 export const SITE_NAME = "Founder Roast";
 
-const money = (cents: number) => `$${(cents / 100).toFixed(cents % 100 === 0 ? 0 : 2)}`;
+/** Charge currency (must match what your Paystack account accepts). Prices are in its smallest unit. */
+export const CURRENCY = (process.env.PAYSTACK_CURRENCY || "USD").toUpperCase();
+
+export const money = (cents: number) =>
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: CURRENCY,
+    currencyDisplay: "narrowSymbol",
+    minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(cents / 100);
 
 /** First full report. */
 export const PRICE_CENTS = Number(process.env.PRICE_CENTS || 3900);

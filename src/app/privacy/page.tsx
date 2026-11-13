@@ -16,7 +16,7 @@ export default function Privacy() {
       </p>
       <h2>Payments</h2>
       <p>
-        Payments are handled by PayPal. We never see your card or bank details. PayPal shares your email and the payment status with us so we can deliver
+        Payments are handled by Paystack. We never see your card or bank details. We collect your email at checkout, and Paystack shares the payment status with us so we can deliver
         and, if needed, refund your report.
       </p>
       <h2>AI processing</h2>

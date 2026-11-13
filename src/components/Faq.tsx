@@ -4,7 +4,7 @@ const QA: [string, string][] = [
   ["What do I get for free?", "Your overall score out of 100, a one-line verdict and a shareable roast. No signup, no email."],
   [
     "What’s in the full report?",
-    `Your blind spots, a teardown against your top competitors, four scores with every issue and fix, a ranked growth plan, a rewritten hero and a PDF. ${PRICE_LABEL}, one time.`,
+    `A roast of the idea itself (problem, timing, money, moat, distribution), your blind spots, a teardown of the competitors who are winning, lessons from startups in your space that failed, the features they have that you don't, four page scores, a growth plan, a rewritten hero and a PDF. ${PRICE_LABEL}, one time.`,
   ],
   [
     "How does the AI judge my site?",

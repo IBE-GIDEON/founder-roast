@@ -6,7 +6,7 @@ import { UnlockButton } from "./UnlockButton";
 
 const fmt = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
-/** Owner-only: run a $15 fix check, or see that the site is already up to date. */
+/** Owner-only: run a paid fix check, or see that the site is already up to date. */
 export function FixCheckPanel({
   reportId,
   accessKey,
