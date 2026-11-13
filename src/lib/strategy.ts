@@ -214,8 +214,9 @@ export async function strategize(c: CrawlResult, comps: CompetitorRead[], market
   try {
     const raw = await groqJSON(SYSTEM, `<data>\n${dataBlock(c, comps, market)}\n</data>\n\nJSON only.`, {
       temperature: 0.3,
-      effort: "medium",
-      maxTokens: 5000,
+      // The smaller model can spend its whole budget reasoning and return empty JSON at "medium".
+      effort: MODELS.strategy.includes("20b") ? "low" : "medium",
+      maxTokens: 6000,
       timeoutMs: 70_000,
       model: MODELS.strategy,
       fallbackModel: MODELS.main,

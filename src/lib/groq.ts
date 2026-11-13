@@ -30,7 +30,7 @@ async function call(model: string, system: string, user: string, temperature: nu
     max_completion_tokens: maxTokens,
     response_format: { type: "json_object" },
   };
-  if (model.startsWith("openai/gpt-oss")) body.reasoning_effort = effort;
+  if (model.startsWith("openai/gpt-oss")) body.reasoning_effort = model.includes("20b") && effort === "medium" ? "low" : effort;
 
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -70,13 +70,14 @@ export async function groqJSON<T = Record<string, unknown>>(
     fallbackModel?: string;
   } = {},
 ): Promise<T> {
-  const { temperature = 0.6, effort = "medium", maxTokens = 6000, timeoutMs = 60_000, attempts = 3 } = opts;
+  const { temperature = 0.6, effort = "medium", maxTokens = 6000, timeoutMs = 60_000, attempts = 4 } = opts;
   const model1 = opts.model || PRIMARY_MODEL;
   const model2 = opts.fallbackModel || (model1 === FALLBACK_MODEL ? PRIMARY_MODEL : FALLBACK_MODEL);
   const plan: [string, number][] = [
     [model1, temperature],
     [model1, Math.max(0.2, temperature - 0.3)],
     [model2, temperature],
+    [model2, Math.max(0.2, temperature - 0.3)],
   ].slice(0, attempts) as [string, number][];
 
   for (let i = 0; i < plan.length; i++) {
