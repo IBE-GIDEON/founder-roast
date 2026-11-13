@@ -122,15 +122,19 @@ async function readCapped(res: { body: { getReader(): ReadableStreamDefaultReade
   if (!reader) return { text: "", bytes: 0 };
   const chunks: Uint8Array[] = [];
   let total = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > MAX_BYTES) {
-      await reader.cancel();
-      break;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > MAX_BYTES) {
+        await reader.cancel();
+        break;
+      }
+      chunks.push(value);
     }
-    chunks.push(value);
+  } catch {
+    // Timed out mid-download (slow site): keep what arrived; the caller decides if it's enough.
   }
   const buf = new Uint8Array(chunks.reduce((n, c) => n + c.byteLength, 0));
   let off = 0;
@@ -180,6 +184,7 @@ export async function safeFetch(start: URL, timeoutMs = TIMEOUT_MS): Promise<Fet
     }
     const { text, bytes } = await readCapped(res as never);
     clearTimeout(timer);
+    if (text.length < 500 && ctrl.signal.aborted) throw new CrawlError(`${url.hostname} took too long to load.`, 422);
     return { finalUrl: url, html: text, status: res.status, ms: Date.now() - t0, bytes };
   }
   throw new CrawlError("Too many redirects.", 422);

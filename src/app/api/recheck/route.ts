@@ -5,7 +5,7 @@ import { runRecheck } from "@/lib/recheck";
 import type { RoastEvent } from "@/lib/reports";
 
 export const runtime = "nodejs";
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 /** POST { token } → NDJSON stream of the live fix check. The token comes from a verified payment. */
 export async function POST(req: Request) {

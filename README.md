@@ -23,6 +23,22 @@ Paste a startup URL. AI reads the site and its competitors live, then returns a 
 
 To charge in dollars, USD must be enabled on your Paystack account; otherwise set `PAYSTACK_CURRENCY=NGN` (or your local currency) and set `PRICE_CENTS` / `RECHECK_PRICE_CENTS` in that currency's smallest unit. `/terms` (with the refund policy) and `/privacy` are included; the support address defaults to the one in `src/lib/site.ts`.
 
+## Zero-budget setup (first 50 customers)
+
+Everything below runs at $0 until revenue comes in:
+
+| Need | Free option | Limit |
+| --- | --- | --- |
+| AI | Groq free tier, spread over 3 models, with wait-and-retry when busy | ~1 roast/minute sustained, 1,000 requests/day per model |
+| Backup AI (optional) | Cerebras or Gemini free tier via `EXTRA_LLM_*` | extra capacity when Groq is busy |
+| Storage | Upstash free | 500K commands/month |
+| Payments | Paystack | no monthly fee, a cut per sale |
+| Email to buyers | Gmail app password (`SMTP_USER`, `SMTP_PASS`) | ~500 emails/day |
+| Domain | `founder-roast.vercel.app` | — |
+| Hosting | Vercel Hobby until the first sale | Hobby is for non-commercial use: move to Pro once you're selling |
+
+Check what's configured on the live site at `/api/health`.
+
 ## Run locally
 
 ```bash

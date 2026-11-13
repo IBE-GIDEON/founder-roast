@@ -7,7 +7,7 @@ import { createReport, findCachedReport, replay, type RoastEvent } from "@/lib/r
 import type { Report } from "@/lib/types";
 
 export const runtime = "nodejs";
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 const summary = (report: Report, cached: boolean) => ({
   id: report.id,

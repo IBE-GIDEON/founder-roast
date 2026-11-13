@@ -219,7 +219,7 @@ export async function strategize(c: CrawlResult, comps: CompetitorRead[], market
       maxTokens: 6000,
       timeoutMs: 70_000,
       model: MODELS.strategy,
-      fallbackModel: MODELS.main,
+      fallbackModel: MODELS.fast,
     });
     const { candidates, ...rest } = sanitize(raw, comps);
     const checks = await Promise.all(candidates.map(confirmedDead));

@@ -78,14 +78,22 @@ export async function guessMarket(home: PageData, ownDomain: string): Promise<Ma
     `text: ${home.bodyText.slice(0, 1500)}`,
     `</site>`,
   ].join("\n");
-  const raw = await groqJSON<{ category?: string; audience?: string; competitors?: { name?: string; domain?: string; why?: string }[] }>(SYSTEM, site, {
-    temperature: 0.3,
-    effort: "low",
-    maxTokens: 1500,
-    timeoutMs: 40_000,
-    model: MODELS.fast,
-    fallbackModel: MODELS.main,
-  });
+  let raw: { category?: string; audience?: string; competitors?: { name?: string; domain?: string; why?: string }[] };
+  try {
+    raw = await groqJSON(SYSTEM, site, {
+      temperature: 0.3,
+      effort: "low",
+      maxTokens: 1500,
+      timeoutMs: 40_000,
+      budgetMs: 60_000,
+      model: MODELS.fast,
+      fallbackModel: MODELS.strategy,
+    });
+  } catch (e) {
+    // Competitors are a bonus: if the AI is busy, roast the page without them rather than failing.
+    console.error("[market] failed", (e as Error).message);
+    return { category: "", audience: "", seeds: [] };
+  }
   const own = ownDomain.replace(/^www\./, "");
   const seen = new Set<string>();
   const seeds = (raw.competitors || [])
