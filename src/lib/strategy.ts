@@ -220,6 +220,8 @@ export async function strategize(c: CrawlResult, comps: CompetitorRead[], market
       timeoutMs: 70_000,
       model: MODELS.strategy,
       fallbackModel: MODELS.fast,
+      // Share the load: the business roast goes to the second engine (Gemini) first when it's configured.
+      preferSecond: true,
     });
     const { candidates, ...rest } = sanitize(raw, comps);
     const checks = await Promise.all(candidates.map(confirmedDead));

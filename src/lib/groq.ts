@@ -34,13 +34,27 @@ interface Provider {
 
 const groq = (): Provider => ({ name: "groq", url: GROQ_URL, key: process.env.GROQ_API_KEY || "" });
 
-/** Optional free fallback, e.g. EXTRA_LLM_URL=https://api.cerebras.ai/v1/chat/completions EXTRA_LLM_MODEL=gpt-oss-120b */
+const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+
+/**
+ * Second engine that shares the load with Groq.
+ * - GEMINI_API_KEY (+ optional GEMINI_MODEL): Google's free tier via its OpenAI-compatible endpoint.
+ * - Or any OpenAI-compatible API: EXTRA_LLM_URL + EXTRA_LLM_KEY + EXTRA_LLM_MODEL (e.g. Cerebras).
+ */
 function extra(): { provider: Provider; model: string } | null {
+  if (process.env.GEMINI_API_KEY) {
+    return {
+      provider: { name: "gemini", url: GEMINI_URL, key: process.env.GEMINI_API_KEY },
+      model: process.env.GEMINI_MODEL || "gemini-flash-lite-latest",
+    };
+  }
   const url = process.env.EXTRA_LLM_URL;
   const key = process.env.EXTRA_LLM_KEY;
   const model = process.env.EXTRA_LLM_MODEL;
   return url && key && model ? { provider: { name: "extra", url, key }, model } : null;
 }
+
+export const secondEngine = () => extra()?.provider.name ?? null;
 
 type CallResult = { ok: true; content: string } | { ok: false; status: number; error: string; retryAfter: number };
 
@@ -64,7 +78,7 @@ async function call(
     max_completion_tokens: maxTokens,
     response_format: { type: "json_object" },
   };
-  if (/gpt-oss/.test(model)) body.reasoning_effort = model.includes("20b") && effort !== "low" ? "low" : effort;
+  if (/gpt-oss/.test(model) && p.name !== "gemini") body.reasoning_effort = model.includes("20b") && effort !== "low" ? "low" : effort;
   if (p.name === "groq" && model.startsWith("qwen/")) body.reasoning_format = "hidden";
 
   const ctrl = new AbortController();
@@ -114,6 +128,8 @@ export async function groqJSON<T = Record<string, unknown>>(
     fallbackModel?: string;
     /** Total time we're willing to spend, including waiting for rate limits. */
     budgetMs?: number;
+    /** Try the second engine (Gemini) first, so work is shared instead of piling onto Groq. */
+    preferSecond?: boolean;
   } = {},
 ): Promise<T> {
   const { temperature = 0.6, effort = "medium", maxTokens = 6000, timeoutMs = 60_000, budgetMs = 150_000 } = opts;
@@ -124,7 +140,13 @@ export async function groqJSON<T = Record<string, unknown>>(
 
   for (let round = 0; round < 4 && Date.now() < deadline; round++) {
     let soonest = Infinity;
-    const attempts: { p: Provider; model: string }[] = [...order.map((m) => ({ p: groq(), model: m })), ...(ex ? [{ p: ex.provider, model: ex.model }] : [])];
+    const onGroq = order.map((m) => ({ p: groq(), model: m }));
+    const second = ex ? [{ p: ex.provider, model: ex.model }] : [];
+    // Preferred: second engine first. Otherwise: our first-choice Groq model, then the second engine
+    // (better than dropping to a smaller Groq model), then the remaining Groq models.
+    const attempts: { p: Provider; model: string }[] = opts.preferSecond
+      ? [...second, ...onGroq]
+      : [...onGroq.slice(0, 1), ...second, ...onGroq.slice(1)];
 
     for (const { p, model } of attempts) {
       if (Date.now() >= deadline) break;
@@ -132,7 +154,9 @@ export async function groqJSON<T = Record<string, unknown>>(
       const res = await call(p, model, system, user, temp, effort, maxTokens, Math.min(timeoutMs, Math.max(5_000, deadline - Date.now())));
       if (res.ok) {
         try {
-          return parseJSON<T>(res.content);
+          const parsed = parseJSON<T>(res.content);
+          console.info("[llm] ok", p.name, model);
+          return parsed;
         } catch {
           console.error("[llm]", p.name, model, "invalid JSON");
           continue;
@@ -140,7 +164,7 @@ export async function groqJSON<T = Record<string, unknown>>(
       }
       console.error("[llm]", p.name, model, res.status, res.error);
       if (res.status === 401 && p.name === "groq") throw new AnalyzeError("Groq rejected the API key.");
-      if (res.status === 429) soonest = Math.min(soonest, (res.retryAfter || 5) * 1000);
+      if (res.status === 429 || res.status === 503) soonest = Math.min(soonest, (res.retryAfter || 5) * 1000);
     }
 
     // Everyone was busy: wait our turn rather than failing the roast.
