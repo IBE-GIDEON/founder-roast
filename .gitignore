@@ -10,3 +10,5 @@ next-env.d.ts
 .claude
 roasts-*.md
 urls.txt
+.env*
+!.env.example
