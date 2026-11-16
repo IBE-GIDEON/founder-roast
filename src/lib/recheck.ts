@@ -4,7 +4,7 @@ import { overallFrom, pageDump, signalLines } from "./analyze";
 import { CrawlError, crawlSite, type CrawlResult } from "./crawl";
 import { AnalyzeError, groqEnabled, groqJSON } from "./groq";
 import { getReport, newId, type RoastEvent } from "./reports";
-import { IS_PROD, money, RECHECK_REFUND_CENTS } from "./site";
+import { IS_PROD, RECHECK_REFUND_USD_CENTS, withUsd } from "./site";
 import { getJSON, setJSON, store } from "./store";
 import { refundTransaction } from "./paystack";
 import { SCORE_KEYS, SCORE_META, type Report, type ScoreKey, type TraceLine } from "./types";
@@ -181,7 +181,8 @@ function rescore(r: Report, items: CheckItem[]) {
 }
 
 async function refundHalf(p: RecheckPayment): Promise<Recheck["refund"]> {
-  const amount = Math.min(RECHECK_REFUND_CENTS, Math.floor(p.amount / 2));
+  // Half of what they actually paid, in whole units (₦10,150, not ₦10,150.50).
+  const amount = Math.floor(p.amount / 200) * 100;
   if (p.dev) return { amount, status: "simulated" };
   if (!p.reference) return { amount, status: "failed" };
   try {
@@ -262,7 +263,7 @@ export async function runRecheck(token: string, emit: (e: RoastEvent) => void): 
       step("All clear. Nothing left to fix", "ok", "Your landing page is up to date.");
       refund = await refundHalf(pay);
       if (refund.status === "refunded" || refund.status === "simulated") {
-        step(`Refunding half your fix check`, "ok", `${money(refund.amount)} back to your card${refund.status === "simulated" ? " (dev mode: simulated)" : ""}`);
+        step(`Refunding half your fix check`, "ok", `${withUsd(refund.amount, RECHECK_REFUND_USD_CENTS)} back to your card${refund.status === "simulated" ? " (dev mode: simulated)" : ""}`);
       } else {
         step("Refund needs a manual review", "warn", "We'll process your half refund by hand.");
       }

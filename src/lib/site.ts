@@ -1,26 +1,39 @@
 export const SITE_NAME = "Founder Roast";
 
-/** Charge currency (must match what your Paystack account accepts). Prices are in its smallest unit. */
+/** Charge currency (must match what your Paystack account accepts). Amounts in it are in its smallest unit. */
 export const CURRENCY = (process.env.PAYSTACK_CURRENCY || "USD").toUpperCase();
+/** True when Paystack charges in dollars, so the price shown is exactly the price charged. */
+export const CHARGES_IN_USD = CURRENCY === "USD";
 
-export const money = (cents: number) =>
+const format = (currency: string, cents: number) =>
   new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: CURRENCY,
+    currency,
     currencyDisplay: "narrowSymbol",
     minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
     maximumFractionDigits: 2,
   }).format(cents / 100);
 
+/** An amount in the charge currency, e.g. "₦66,300". */
+export const money = (cents: number) => format(CURRENCY, cents);
+/** An amount in US dollars, e.g. "$49". */
+export const usd = (cents: number) => format("USD", cents);
+
+/** A charged amount with its dollar value next to it when we charge in another currency: "₦10,150 (about $7.50)". */
+export const withUsd = (cents: number, usdCents: number) => (CHARGES_IN_USD ? money(cents) : `${money(cents)} (about ${usd(usdCents)})`);
+
+// Prices are set and shown in US dollars. When Paystack charges another currency, the charge is the same price
+// converted at the day's rate (see pricing.ts).
+
 /** First full report. */
-export const PRICE_CENTS = Number(process.env.PRICE_CENTS || 3900);
-export const PRICE_LABEL = money(PRICE_CENTS);
+export const PRICE_USD_CENTS = Number(process.env.PRICE_USD_CENTS || 4900);
+export const PRICE_LABEL = usd(PRICE_USD_CENTS);
 
 /** Fix check: re-verifies the original findings only. Half is refunded when everything is fixed. */
-export const RECHECK_PRICE_CENTS = Number(process.env.RECHECK_PRICE_CENTS || 1500);
-export const RECHECK_LABEL = money(RECHECK_PRICE_CENTS);
-export const RECHECK_REFUND_CENTS = Math.floor(RECHECK_PRICE_CENTS / 2);
-export const RECHECK_REFUND_LABEL = money(RECHECK_REFUND_CENTS);
+export const RECHECK_USD_CENTS = Number(process.env.RECHECK_PRICE_USD_CENTS || 1500);
+export const RECHECK_LABEL = usd(RECHECK_USD_CENTS);
+export const RECHECK_REFUND_USD_CENTS = Math.floor(RECHECK_USD_CENTS / 2);
+export const RECHECK_REFUND_LABEL = usd(RECHECK_REFUND_USD_CENTS);
 
 export const X_HANDLE = (process.env.NEXT_PUBLIC_X_HANDLE || "").replace(/^@/, "");
 /** Where support mail actually goes. */

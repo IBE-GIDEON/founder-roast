@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import { LegalPage } from "@/components/LegalPage";
-import { CONTACT_EMAIL, CONTACT_LABEL, PRICE_LABEL } from "@/lib/site";
+import { CHARGES_IN_USD, CONTACT_EMAIL, CONTACT_LABEL, PRICE_LABEL } from "@/lib/site";
 
 export const metadata: Metadata = { title: "Terms & refunds" };
 
 export default function Terms() {
   const contact = CONTACT_EMAIL ? <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_LABEL}</a> : "the contact address on this site";
   return (
-    <LegalPage title="Terms & refunds" updated="November 11, 2026">
+    <LegalPage title="Terms & refunds" updated="November 16, 2026">
       <p>
         Founder Roast analyses public web pages with automated tools and AI and gives you an opinion on them. By using the site you agree to these
         terms.
@@ -17,6 +17,12 @@ export default function Terms() {
         The free roast gives you an overall score and a short verdict. The full report ({PRICE_LABEL}, one-time) unlocks detailed scores, issues
         and fixes, a growth plan, a rewritten hero section and a PDF for that one URL. There is no subscription.
       </p>
+      {!CHARGES_IN_USD && (
+        <p>
+          Prices are shown in US dollars. Payments are processed by Paystack in Nigerian naira at the day&apos;s exchange rate, and your bank
+          converts the amount. Your bank may add its own foreign-transaction fee.
+        </p>
+      )}
       <h2>It&apos;s an opinion, not a guarantee</h2>
       <p>
         Scores and suggestions are generated automatically and can be wrong. They are not professional, legal or financial advice, and we

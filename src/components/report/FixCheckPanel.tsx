@@ -12,11 +12,14 @@ export function FixCheckPanel({
   accessKey,
   findings,
   history,
+  charge,
 }: {
   reportId: string;
   accessKey: string;
   findings: number;
   history: RecheckSummary[];
+  /** What Paystack bills when it isn't dollars, e.g. "₦20,300". */
+  charge?: string | null;
 }) {
   const last = history[history.length - 1];
 
@@ -54,7 +57,7 @@ export function FixCheckPanel({
             </p>
           </div>
         </div>
-        <UnlockButton id={reportId} price={RECHECK_LABEL} kind="recheck" accessKey={accessKey} label={`Run fix check · ${RECHECK_LABEL}`} />
+        <UnlockButton id={reportId} price={RECHECK_LABEL} charge={charge} kind="recheck" accessKey={accessKey} label={`Run fix check · ${RECHECK_LABEL}`} />
       </div>
       {history.length > 0 && (
         <ul className="divide-y divide-line border-t border-line">

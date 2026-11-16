@@ -27,8 +27,8 @@ export async function POST(req: Request) {
       // Never trust the webhook body alone: confirm with Paystack's API.
       const v = await verifyTransaction(event.data.reference);
       const base = baseUrl(req);
-      if (validPayment(v, "report", v.reportId)) await fulfilReport(v, base);
-      else if (validPayment(v, "recheck", v.reportId)) await fulfilRecheck(v, base);
+      if (await validPayment(v, "report", v.reportId)) await fulfilReport(v, base);
+      else if (await validPayment(v, "recheck", v.reportId)) await fulfilRecheck(v, base);
     } catch (e) {
       console.error("[paystack webhook] failed", e);
       return NextResponse.json({ error: "Retry later" }, { status: 500 });

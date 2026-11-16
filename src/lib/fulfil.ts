@@ -3,13 +3,13 @@ import { accessKeyFor } from "./access";
 import { sendFixCheckEmail, sendReportEmail } from "./email";
 import { PAYSTACK_CURRENCY, type Verified } from "./paystack";
 import { createRecheckPayment, type RecheckPayment } from "./recheck";
+import { minimumCents } from "./pricing";
 import { getReport, recordPurchase } from "./reports";
-import { PRICE_CENTS, RECHECK_PRICE_CENTS } from "./site";
 
 /** Checks a verified Paystack payment really is the product it claims to be, for this report. */
-export function validPayment(v: Verified, kind: "report" | "recheck", reportId: string) {
-  const min = kind === "report" ? PRICE_CENTS : RECHECK_PRICE_CENTS;
-  return v.paid && v.kind === kind && v.reportId === reportId && v.currency === PAYSTACK_CURRENCY && v.amount >= min;
+export async function validPayment(v: Verified, kind: "report" | "recheck", reportId: string) {
+  if (!(v.paid && v.kind === kind && v.reportId === reportId && v.currency === PAYSTACK_CURRENCY)) return false;
+  return v.amount >= (await minimumCents(kind));
 }
 
 /** Full report bought: record it once and email the private link. Safe to call from both callback and webhook. */

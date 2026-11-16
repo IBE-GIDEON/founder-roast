@@ -21,7 +21,7 @@ Paste a startup URL. AI reads the site and its competitors live, then returns a 
 | X account for the brand | x.com | — | `NEXT_PUBLIC_X_HANDLE` |
 | Support email | any inbox | — | `NEXT_PUBLIC_CONTACT_EMAIL` |
 
-To charge in dollars, USD must be enabled on your Paystack account; otherwise set `PAYSTACK_CURRENCY=NGN` (or your local currency) and set `PRICE_CENTS` / `RECHECK_PRICE_CENTS` in that currency's smallest unit. `/terms` (with the refund policy) and `/privacy` are included; the support address defaults to the one in `src/lib/site.ts`.
+Prices are shown in US dollars. To charge in dollars, USD must be enabled on your Paystack account; otherwise set `PAYSTACK_CURRENCY=NGN` (or your local currency) and checkout bills the dollar price converted at the day's rate. `/terms` (with the refund policy) and `/privacy` are included; the support address defaults to the one in `src/lib/site.ts`.
 
 ## Zero-budget setup (first 50 customers)
 
@@ -82,7 +82,7 @@ This writes `roasts-YYYY-MM-DD.md` with ready-to-post drafts. The founder's X ha
 
 ## Prices
 
-Set `PRICE_CENTS` (default 3900) and `RECHECK_PRICE_CENTS` (default 1500). The fix-check refund is always half the fix-check price.
+Set `PRICE_USD_CENTS` (default 4900 = $49) and `RECHECK_PRICE_USD_CENTS` (default 1500 = $15). When Paystack charges another currency, the amount is converted live (cached 6 hours, `USD_RATE` as fallback) and the checkout shows what will be billed. The fix-check refund is always half of what was paid. `/api/health` shows today's shown and charged prices.
 
 ## Project map
 

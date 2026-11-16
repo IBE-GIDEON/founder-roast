@@ -1,4 +1,4 @@
-import { PRICE_LABEL, RECHECK_LABEL, RECHECK_REFUND_LABEL } from "@/lib/site";
+import { CHARGES_IN_USD, PRICE_LABEL, RECHECK_LABEL, RECHECK_REFUND_LABEL } from "@/lib/site";
 
 const QA: [string, string][] = [
   ["What do I get for free?", "Your overall score out of 100, a one-line verdict and a shareable roast. No signup, no email."],
@@ -15,6 +15,14 @@ const QA: [string, string][] = [
     "I fixed things. Do I pay for a whole new roast?",
     `No. A fix check (${RECHECK_LABEL}) re-checks only the findings from your original roast. We never invent new problems. If everything is fixed, we mark you up to date and refund ${RECHECK_REFUND_LABEL} automatically.`,
   ],
+  ...(CHARGES_IN_USD
+    ? []
+    : ([
+        [
+          "What currency do I pay in?",
+          "Prices are in US dollars. Checkout runs through Paystack, which bills the naira equivalent at today's rate, and your bank converts it. Your bank may add a small foreign-transaction fee.",
+        ],
+      ] as [string, string][])),
   ["My site is built with JavaScript. Will it work?", "Usually, yes. If the raw HTML is empty we fall back to a rendered read of the page."],
   [
     "Can I get a refund?",

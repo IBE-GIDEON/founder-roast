@@ -4,7 +4,8 @@ import { accessCookieName, isValidKey } from "@/lib/access";
 import { initializeTransaction, newReference, paystackEnabled } from "@/lib/paystack";
 import { upToDate } from "@/lib/recheck";
 import { getReport } from "@/lib/reports";
-import { baseUrl, IS_PROD, PRICE_CENTS, RECHECK_PRICE_CENTS } from "@/lib/site";
+import { chargeCents } from "@/lib/pricing";
+import { baseUrl, IS_PROD } from "@/lib/site";
 
 export const runtime = "nodejs";
 
@@ -44,7 +45,7 @@ export async function POST(req: Request) {
   try {
     const tx = await initializeTransaction({
       email,
-      amount: kind === "recheck" ? RECHECK_PRICE_CENTS : PRICE_CENTS,
+      amount: await chargeCents(kind),
       reference: newReference(kind, report.id),
       callbackUrl: `${base}${returnPath}`,
       metadata: { reportId: report.id, kind, domain: report.domain },

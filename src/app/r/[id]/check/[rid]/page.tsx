@@ -6,7 +6,7 @@ import { AlertTriangle, ArrowLeft, BadgeCheck, CheckCircle2, CircleDot } from "l
 import { accessCookieName, isValidKey } from "@/lib/access";
 import { getRecheck } from "@/lib/recheck";
 import { getReport } from "@/lib/reports";
-import { money, scoreColor } from "@/lib/site";
+import { RECHECK_REFUND_USD_CENTS, scoreColor, withUsd } from "@/lib/site";
 import { SCORE_KEYS, SCORE_META } from "@/lib/types";
 import { Logo } from "@/components/Brand";
 import { Footer } from "@/components/Footer";
@@ -73,11 +73,11 @@ export default async function FixCheckPage({
             <div className="border-t border-[#abefc6] px-6 py-4 text-[13.5px] text-ink-2 sm:px-8">
               {refunded ? (
                 <>
-                  We&apos;ve refunded <span className="font-semibold">{money(rc.refund.amount)}</span>, half your fix check, to your original payment method
+                  We&apos;ve refunded <span className="font-semibold">{withUsd(rc.refund.amount, RECHECK_REFUND_USD_CENTS)}</span>, half your fix check, to your original payment method
                   {rc.refund.status === "simulated" ? " (simulated in development)" : ""}. Refunds to a card can take a few business days to show.
                 </>
               ) : (
-                <>Your half refund ({money(rc.refund.amount)}) needs a manual review. We&apos;ll process it and email you.</>
+                <>Your half refund ({withUsd(rc.refund.amount, RECHECK_REFUND_USD_CENTS)}) needs a manual review. We&apos;ll process it and email you.</>
               )}
             </div>
           </section>

@@ -8,6 +8,7 @@ const EMAIL_KEY = "fr_email";
 export function UnlockButton({
   id,
   price,
+  charge,
   variant = "dark",
   label,
   className = "",
@@ -15,7 +16,10 @@ export function UnlockButton({
   accessKey,
 }: {
   id: string;
+  /** Dollar price shown everywhere, e.g. "$49". */
   price: string;
+  /** What Paystack bills when it isn't dollars, e.g. "₦66,300". */
+  charge?: string | null;
   variant?: "dark" | "light";
   label?: string;
   className?: string;
@@ -91,7 +95,10 @@ export function UnlockButton({
                 <h2 id={`pay-${id}-${kind}`} className="text-[16px] font-semibold text-ink">
                   {title}
                 </h2>
-                <p className="mt-0.5 text-[13px] text-muted">{price}, one-time payment.</p>
+                <p className="mt-0.5 text-[13px] text-muted">
+                  {price}, one-time payment.
+                  {charge && <> Billed as {charge} at today&apos;s rate.</>}
+                </p>
               </div>
               <button type="button" onClick={() => !busy && setOpen(false)} aria-label="Close" className="rounded-md p-1 text-faint hover:bg-[#f2f4f7] hover:text-ink">
                 <X size={16} />

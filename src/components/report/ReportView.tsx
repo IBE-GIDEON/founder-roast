@@ -32,6 +32,8 @@ type Props = {
   free: FreeReport;
   full: Report | null;
   price: string;
+  /** What Paystack bills when it isn't dollars, e.g. "₦66,300". */
+  charge?: string | null;
   shareUrl: string;
   tweet: string;
   cardUrl: string;
@@ -79,7 +81,7 @@ function SectionHead({ id, title, meta, locked }: { id: string; title: string; m
 }
 
 /** Blurred stand-in for paid content. Contains no real report data. */
-function Locked({ id, price, rows = 3, label }: { id: string; price: string; rows?: number; label: string }) {
+function Locked({ id, price, charge, rows = 3, label }: { id: string; price: string; charge?: string | null; rows?: number; label: string }) {
   return (
     <div className="relative overflow-hidden rounded-lg border border-line bg-white">
       <div className="divide-y divide-line" aria-hidden="true">
@@ -98,14 +100,14 @@ function Locked({ id, price, rows = 3, label }: { id: string; price: string; row
           <p className="flex items-center gap-1.5 text-[13px] font-medium text-ink">
             <Lock size={13} aria-hidden="true" /> {label}
           </p>
-          <UnlockButton id={id} price={price} label={`Unlock · ${price}`} />
+          <UnlockButton id={id} price={price} charge={charge} label={`Unlock · ${price}`} />
         </div>
       </div>
     </div>
   );
 }
 
-export function ReportView({ free, full, price, shareUrl, tweet, cardUrl, pdfUrl, privateUrl, notice, fixCheck, upToDateSince }: Props) {
+export function ReportView({ free, full, price, charge, shareUrl, tweet, cardUrl, pdfUrl, privateUrl, notice, fixCheck, upToDateSince }: Props) {
   const unlocked = !!full;
   const date = new Date(free.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   const compNames = free.competitors.map((c) => c.name);
@@ -139,7 +141,7 @@ export function ReportView({ free, full, price, shareUrl, tweet, cardUrl, pdfUrl
                 <Download size={14} /> Download PDF
               </a>
             ) : (
-              <UnlockButton id={free.id} price={price} />
+              <UnlockButton id={free.id} price={price} charge={charge} />
             )}
           </div>
         </div>
@@ -266,7 +268,7 @@ export function ReportView({ free, full, price, shareUrl, tweet, cardUrl, pdfUrl
                     . PDF included.
                   </p>
                 </div>
-                <UnlockButton id={free.id} price={price} variant="light" />
+                <UnlockButton id={free.id} price={price} charge={charge} variant="light" />
               </div>
             )}
 
@@ -317,7 +319,7 @@ export function ReportView({ free, full, price, shareUrl, tweet, cardUrl, pdfUrl
                   </div>
                 </div>
                 <div className="border-t border-line">
-                  <Locked id={free.id} price={price} rows={Math.max(1, free.blindSpotCount - 1)} label={`${Math.max(1, free.blindSpotCount - 1)} more blind spots`} />
+                  <Locked id={free.id} price={price} charge={charge} rows={Math.max(1, free.blindSpotCount - 1)} label={`${Math.max(1, free.blindSpotCount - 1)} more blind spots`} />
                 </div>
               </div>
             ) : (
@@ -376,7 +378,7 @@ export function ReportView({ free, full, price, shareUrl, tweet, cardUrl, pdfUrl
                   )}
                 </div>
               ) : (
-                <Locked id={free.id} price={price} rows={3} label="Idea score, the hard question and top risks" />
+                <Locked id={free.id} price={price} charge={charge} rows={3} label="Idea score, the hard question and top risks" />
               )}
             </section>
           )}
@@ -528,7 +530,7 @@ export function ReportView({ free, full, price, shareUrl, tweet, cardUrl, pdfUrl
                   )}
                 </div>
               ) : (
-                <Locked id={free.id} price={price} rows={3} label={`${free.teasers.gaps} features they have that you don't`} />
+                <Locked id={free.id} price={price} charge={charge} rows={3} label={`${free.teasers.gaps} features they have that you don't`} />
               )}
             </section>
           )}
@@ -563,7 +565,7 @@ export function ReportView({ free, full, price, shareUrl, tweet, cardUrl, pdfUrl
                   <p className="mt-2 text-[12px] text-faint">Based on public reporting about these companies. Verify before citing.</p>
                 </>
               ) : (
-                <Locked id={free.id} price={price} rows={2} label={`${free.teasers.graveyard} failed startups and what killed them`} />
+                <Locked id={free.id} price={price} charge={charge} rows={2} label={`${free.teasers.graveyard} failed startups and what killed them`} />
               )}
             </section>
           )}
@@ -606,7 +608,7 @@ export function ReportView({ free, full, price, shareUrl, tweet, cardUrl, pdfUrl
                 })}
               </div>
             ) : (
-              <Locked id={free.id} price={price} rows={4} label="Four scores with every issue and fix" />
+              <Locked id={free.id} price={price} charge={charge} rows={4} label="Four scores with every issue and fix" />
             )}
           </section>
 
@@ -638,7 +640,7 @@ export function ReportView({ free, full, price, shareUrl, tweet, cardUrl, pdfUrl
                 </ol>
               </div>
             ) : (
-              <Locked id={free.id} price={price} rows={4} label="5 to 7 moves, ranked by impact" />
+              <Locked id={free.id} price={price} charge={charge} rows={4} label="5 to 7 moves, ranked by impact" />
             )}
           </section>
 
@@ -687,7 +689,7 @@ export function ReportView({ free, full, price, shareUrl, tweet, cardUrl, pdfUrl
                 <p className="border-t border-line bg-[#fafbfc] px-6 py-4 text-center text-[14px] font-medium text-ink">{full.rewrite.closingLine}</p>
               </div>
             ) : (
-              <Locked id={free.id} price={price} rows={3} label="A new hero you can paste today" />
+              <Locked id={free.id} price={price} charge={charge} rows={3} label="A new hero you can paste today" />
             )}
           </section>
 
@@ -726,7 +728,7 @@ export function ReportView({ free, full, price, shareUrl, tweet, cardUrl, pdfUrl
                   <p className="text-[13px] text-muted">Blind spots, competitor teardown, scores, growth plan, rewrite and a PDF. One-time {price}.</p>
                 </div>
               </div>
-              <UnlockButton id={free.id} price={price} />
+              <UnlockButton id={free.id} price={price} charge={charge} />
             </section>
           )}
         </main>

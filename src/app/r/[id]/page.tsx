@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cookies, headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { accessCookieName, isValidKey } from "@/lib/access";
+import { chargeLabel } from "@/lib/pricing";
 import { listRechecks } from "@/lib/recheck";
 import { getReport } from "@/lib/reports";
 import { configuredSiteUrl, PRICE_LABEL, X_HANDLE } from "@/lib/site";
@@ -52,6 +53,8 @@ export default async function ReportPage({ params, searchParams }: Props) {
   const unlocked = !!key;
   const history = await listRechecks(id).catch(() => []);
   const last = history[history.length - 1];
+  // Only the price this visitor can buy next: the report, or (once unlocked) a fix check.
+  const charge = await chargeLabel(unlocked ? "recheck" : "report");
 
   const base = await origin();
   const shareUrl = `${base}/r/${report.id}`;
@@ -74,6 +77,7 @@ export default async function ReportPage({ params, searchParams }: Props) {
         free={toFreeReport(report)}
         full={unlocked ? report : null}
         price={PRICE_LABEL}
+        charge={unlocked ? null : charge}
         shareUrl={shareUrl}
         tweet={tweet}
         cardUrl={`/api/card/${report.id}`}
@@ -88,6 +92,7 @@ export default async function ReportPage({ params, searchParams }: Props) {
               accessKey={key}
               findings={report.blindSpots.length + Object.values(report.scores).reduce((n, s) => n + s.issues.length, 0)}
               history={history}
+              charge={charge}
             />
           ) : undefined
         }

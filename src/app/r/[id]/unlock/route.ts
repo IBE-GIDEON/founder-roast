@@ -25,7 +25,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     try {
       const v = await verifyTransaction(reference);
       // A fix-check payment (kind "recheck") must never unlock the full report.
-      if (!validPayment(v, "report", id)) return fail();
+      if (!(await validPayment(v, "report", id))) return fail();
       await fulfilReport(v, base);
     } catch (e) {
       console.error("[unlock] verify failed", e);
