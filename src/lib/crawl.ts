@@ -236,6 +236,9 @@ export interface PageData {
 
 const CTA_RE =
   /\b(get started|start|try|sign ?up|join|book|request|schedule|demo|buy|subscribe|download|install|create|launch|claim|get access|waitlist|contact sales|talk to)\b/i;
+/** Prices only: "$49/mo", "€9", but not "$19M raised" or "$2.5 billion processed". */
+const PRICE_RE = /[$€£]\s?\d[\d,.]*(?![\d,.])(?!\s?(?:m|mm|mn|b|bn|million|billion|trillion)\b)(?:\s?\/\s?(?:mo|month|yr|year|user|seat))?/gi;
+
 const TRUST_RE =
   /(trusted by|loved by|used by|customers|testimonial|reviews?|rated|\d+(\.\d)?\s?\/\s?5|★|stars?|case stud|soc ?2|gdpr|hipaa|iso ?27001|money[- ]back|guarantee|secure|encrypted|backed by|y combinator|as seen (in|on)|featured (in|on))/gi;
 
@@ -383,7 +386,12 @@ export function extract(html: string, pageUrl: URL, meta: { status: number; ms: 
   const allTextLower = bodyText.toLowerCase();
 
   const trustPhrases = uniq((bodyText.match(TRUST_RE) || []).map((s) => s.toLowerCase()), 12);
-  const priceMentions = uniq(bodyText.match(/(?:[$€£]\s?\d[\d,.]*(?:\s?\/\s?(?:mo|month|yr|year|user|seat))?)/gi) || [], 10);
+  // Prices only. "$19M led by NEA" or "$2B processed" are funding and volume figures, not a plan price.
+  // A capital M or B straight after the digits ("$19MProduct", from joined-up text) is still a funding figure.
+  const priceMentions = uniq(
+    [...bodyText.matchAll(PRICE_RE)].filter((m) => !/^[MB]/.test(bodyText.slice(m.index + m[0].length))).map((m) => m[0]),
+    10,
+  );
   const numbers = uniq(bodyText.match(/\b\d[\d,.]*\s?(?:k|m|\+|%|x)\+?(?:\s(?:users|customers|teams|companies|founders|downloads|reviews|hours|revenue))?/gi) || [], 10);
 
   return {
