@@ -88,4 +88,13 @@ for (const r of results) {
 }
 const out = `roasts-${today}.md`;
 await writeFile(out, lines.join("\n"));
-console.log(`\nWrote ${out}`);
+// Same drafts as data, for building a posting page or scheduling tools.
+await writeFile(
+  `roasts-${today}.json`,
+  JSON.stringify(
+    results.map((r) => (r.error ? r : { ...r, ...draft(r) })),
+    null,
+    2,
+  ),
+);
+console.log(`\nWrote ${out} and roasts-${today}.json`);
