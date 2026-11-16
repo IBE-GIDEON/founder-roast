@@ -1,7 +1,7 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
-import { analyze } from "./analyze";
-import { guessMarket, readCompetitor, signalsOf, type CompetitorRead } from "./competitors";
+import { analyze, companyName } from "./analyze";
+import { guessMarket, readCompetitor, sameMarket, signalsOf, type CompetitorRead } from "./competitors";
 import { strategize } from "./strategy";
 import { cacheKeyFor, crawlSite, normalizeUrl } from "./crawl";
 import { getJSON, setJSON, store } from "./store";
@@ -47,7 +47,7 @@ export type RoastEvent =
   | { t: "meta"; domain: string; cached: boolean }
   | { t: "step"; text: string; detail?: string; level: TraceLine["level"] }
   | { t: "market"; category: string; audience: string }
-  | { t: "competitor"; domain: string; name: string; logo: string; status: "found" | "read" | "failed"; headline?: string }
+  | { t: "competitor"; domain: string; name: string; logo: string; status: "found" | "read" | "failed"; headline?: string; note?: string }
   | { t: "done"; id: string; overall: number; href?: string }
   | { t: "error"; error: string };
 
@@ -125,18 +125,42 @@ export async function createReport(input: string, emit: Emit = () => {}): Promis
   emit({ t: "market", category: market.category, audience: market.audience });
   step("Mapping your market", "info", `${market.category}${market.audience ? ` · for ${market.audience.toLowerCase()}` : ""}`);
 
-  const seeds = market.seeds.slice(0, 4);
+  // Show four; read a fifth quietly as a backup in case one of the four is unreachable or the wrong business.
+  const MAX_COMPS = 4;
+  const seeds = market.seeds.slice(0, MAX_COMPS);
+  const backups = market.seeds.slice(MAX_COMPS, MAX_COMPS + 1);
   for (const s of seeds) emit({ t: "competitor", domain: s.domain, name: s.name, logo: logoFor(s.domain), status: "found" });
   if (seeds.length) step(`Found ${seeds.length} competitors`, "ok", seeds.map((s) => s.name).join(", "));
 
-  const reads = await Promise.all(
-    seeds.map(async (s) => {
-      const r = await readCompetitor(s);
-      emit({ t: "competitor", domain: s.domain, name: s.name, logo: logoFor(s.domain), status: r ? "read" : "failed", headline: r?.headline });
-      return r;
-    }),
-  );
-  const comps = reads.filter((r): r is CompetitorRead => !!r);
+  const candidates = [...seeds, ...backups];
+  const reads = await Promise.all(candidates.map((s) => readCompetitor(s)));
+  const reached = reads.filter((r): r is CompetitorRead => !!r);
+  // A guessed domain can belong to a different company with the same name: check before comparing.
+  const keep = await sameMarket(reached, { name: companyName(crawl), summary: `${h.title}. ${h.metaDescription || h.ogDescription}`, category: market.category, audience: market.audience });
+  const ok = (r: CompetitorRead | null): r is CompetitorRead => !!r && (!keep || keep.has(r.domain));
+  const comps: CompetitorRead[] = [];
+  candidates.forEach((s, i) => {
+    const r = reads[i];
+    const base = { t: "competitor" as const, domain: s.domain, name: s.name, logo: logoFor(s.domain) };
+    const isBackup = i >= seeds.length;
+    if (isBackup) {
+      // Only surfaces when it fills a gap.
+      if (ok(r) && comps.length < MAX_COMPS) {
+        emit({ ...base, status: "found" });
+        emit({ ...base, status: "read", headline: r.headline });
+        comps.push(r);
+      }
+      return;
+    }
+    if (!r) emit({ ...base, status: "failed" });
+    else if (!ok(r)) emit({ ...base, status: "failed", note: "Different business at this address. Skipped." });
+    else {
+      emit({ ...base, status: "read", headline: r.headline });
+      comps.push(r);
+    }
+  });
+  const skipped = reached.filter((r) => !ok(r)).length;
+  if (skipped) console.warn(`[market] skipped ${skipped} unrelated competitor site(s)`);
   for (const c of comps) {
     const s = c.signals;
     step(

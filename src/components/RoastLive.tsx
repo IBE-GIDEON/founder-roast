@@ -9,12 +9,12 @@ type Ev =
   | { t: "meta"; domain: string; cached: boolean }
   | { t: "step"; text: string; detail?: string; level: Level }
   | { t: "market"; category: string; audience: string }
-  | { t: "competitor"; domain: string; name: string; logo: string; status: "found" | "read" | "failed"; headline?: string }
+  | { t: "competitor"; domain: string; name: string; logo: string; status: "found" | "read" | "failed"; headline?: string; note?: string }
   | { t: "done"; id: string; overall: number; href?: string }
   | { t: "error"; error: string };
 
 type Line = { key: number; text: string; detail?: string; level: Level };
-type Comp = { domain: string; name: string; logo: string; status: "found" | "read" | "failed"; headline?: string };
+type Comp = { domain: string; name: string; logo: string; status: "found" | "read" | "failed"; headline?: string; note?: string };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const EXPECTED_LINES = 22;
@@ -114,7 +114,7 @@ export function RoastLive({ url = "", check }: { url?: string; check?: string })
         } else if (ev.t === "competitor") {
           setComps((cs) => {
             const i = cs.findIndex((c) => c.domain === ev.domain);
-            const next: Comp = { domain: ev.domain, name: ev.name, logo: ev.logo, status: ev.status, headline: ev.headline };
+            const next: Comp = { domain: ev.domain, name: ev.name, logo: ev.logo, status: ev.status, headline: ev.headline, note: ev.note };
             if (i < 0) return [...cs, next];
             const copy = cs.slice();
             copy[i] = next;
@@ -328,7 +328,7 @@ export function RoastLive({ url = "", check }: { url?: string; check?: string })
                     </div>
                   )}
                   {c.status === "read" && c.headline && <p className="mt-0.5 line-clamp-2 text-[12.5px] leading-snug text-muted">“{c.headline}”</p>}
-                  {c.status === "failed" && <p className="mt-0.5 text-[12px] text-faint">Couldn&apos;t reach their site. Skipped.</p>}
+                  {c.status === "failed" && <p className="mt-0.5 text-[12px] text-faint">{c.note || "Couldn't reach their site. Skipped."}</p>}
                 </div>
               </li>
             ))}

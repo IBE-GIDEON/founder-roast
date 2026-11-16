@@ -231,6 +231,10 @@ export interface PageData {
   trustPhrases: string[];
   numbers: string[];
   internal: { pricing: string | null; about: string | null };
+  /** The site's own "vs", "alternatives" and "compare" links: who it positions itself against. */
+  compareLinks: string[];
+  /** Company names on logo images (customers, investors, integrations). */
+  logoNames: string[];
   likelyJsRendered: boolean;
 }
 
@@ -334,6 +338,28 @@ export function extract(html: string, pageUrl: URL, meta: { status: number; ms: 
   const images = $("img");
   const imagesMissingAlt = images.filter((_, el) => !($(el).attr("alt") || "").trim()).length;
   const logoImages = images.filter((_, el) => /logo/i.test(($(el).attr("alt") || "") + ($(el).attr("src") || ""))).length;
+  const logoNames = uniq(
+    images
+      .map((_, el) => $(el).attr("alt") || "")
+      .get()
+      .filter((alt) => /logo/i.test(alt))
+      .map((alt) => clean(alt.replace(/\b(company |brand )?logo(type)?\b/gi, "").replace(/[|·–—-]+$/, "")))
+      .filter((n) => n.length >= 2 && n.length <= 40 && !/^(logos?|customers?|clients?|partners?|company|brand|image|icon)$/i.test(n)),
+    24,
+  );
+  const pathWords = (href: string) => {
+    try {
+      return new URL(href).pathname.replace(/[-_/]+/g, " ");
+    } catch {
+      return "";
+    }
+  };
+  const compareLinks = uniq(
+    allLinks
+      .filter((l) => /\b(vs|versus|alternatives?|compare|comparison)\b/i.test(`${l.text} ${pathWords(l.href)}`))
+      .map((l) => `${l.text.slice(0, 60) || "(link)"} → ${l.href.slice(0, 160)}`),
+    8,
+  );
 
   const iconHref =
     $('link[rel="icon"]').attr("href") ||
@@ -437,6 +463,8 @@ export function extract(html: string, pageUrl: URL, meta: { status: number; ms: 
       pricing: findInternal(/pricing|plans/),
       about: findInternal(/about|team|company/),
     },
+    compareLinks,
+    logoNames,
     likelyJsRendered: bodyText.length < 300,
   };
 }
