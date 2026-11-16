@@ -35,17 +35,21 @@ if (!urls.length) {
   process.exit(1);
 }
 
-const X_LINK_LEN = 23; // X counts every link as 23 characters
+// Posts stay short: score, one roast line, link. Well under X's 280 limit for accounts without Premium.
+const ROAST_MAX = 150;
+
+/** First sentence if it fits, else cut at a word with an ellipsis. */
+function shortRoast(s) {
+  if (s.length <= ROAST_MAX) return s;
+  const first = s.match(/^.+?[.!?](?=\s|$)/)?.[0];
+  if (first && first.length <= ROAST_MAX) return first;
+  return s.slice(0, ROAST_MAX - 1).replace(/\s+\S*$/, "").replace(/[\s,;:–-]+$/, "") + "…";
+}
 
 function draft(r) {
   const link = `${base}/r/${r.id}`;
   const who = r.xHandle ? ` @${r.xHandle}` : "";
-  const head = `Roasted ${r.domain}${who}: ${r.overall}/100 🔥`;
-  const vs = r.competitors?.length ? `\n\nStacked up against ${r.competitors.slice(0, 3).join(", ")}.` : "";
-  const tail = `\n\nFull teardown 👇\n`;
-  const budget = 280 - head.length - vs.length - tail.length - X_LINK_LEN - 6;
-  const roast = r.roast.length > budget ? r.roast.slice(0, budget - 1).trimEnd() + "…" : r.roast;
-  return { text: `${head}\n\n“${roast}”${vs}${tail}${link}`, link, card: `${base}/api/card/${r.id}` };
+  return { text: `Roasted ${r.domain}${who}: ${r.overall}/100 🔥\n\n${shortRoast(r.roast)}\n\n${link}`, link, card: `${base}/api/card/${r.id}` };
 }
 
 const results = [];

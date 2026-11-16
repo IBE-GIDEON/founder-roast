@@ -181,7 +181,7 @@ Return ONLY a JSON object with exactly this shape:
   "company": "product or company name",
   "oneLiner": "what they actually do, plain English, max 14 words",
   "verdict": "3-7 word headline verdict",
-  "roast": "1-2 sentence roast, max 230 characters, quotable on X, specific to this site (quote them if you can)",
+  "roast": "one punchy sentence, max 140 characters (it gets posted on X), specific to this site (quote them if you can)",
   "roastAlt": "a second roast on a completely different angle, same rules",
   "blindSpots": [ exactly 3, most surprising first: {
       "title": "the thing they forgot, max 12 words, phrased so the founder winces (e.g. 'Your best number is hidden in paragraph nine')",
