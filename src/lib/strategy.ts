@@ -97,6 +97,7 @@ function dataBlock(c: CrawlResult, comps: CompetitorRead[], market: MarketGuess)
     `sub-headings:\n${list(h.h3.slice(0, 10))}`,
     `buttons: ${h.ctas.slice(0, 6).map((t) => `"${t}"`).join(", ") || "(none)"}`,
     `prices: ${h.priceMentions.join(", ") || "none on homepage"}`,
+    `pricing page prices (published): ${c.extraPages.filter((p) => p.kind === "pricing").flatMap((p) => p.priceMentions).join(", ") || "none read"}`,
     `page text: ${(c.renderedText || h.bodyText).slice(0, 2600)}`,
     ...c.extraPages.map((p) => `${p.kind} page: ${p.text.slice(0, 700)}`),
     `</startup>`,

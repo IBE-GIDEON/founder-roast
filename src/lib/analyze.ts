@@ -75,6 +75,20 @@ export function overallFrom(scores: Record<ScoreKey, { score: number }>): number
   return clamp(SCORE_KEYS.reduce((sum, k) => sum + scores[k].score * SCORE_META[k].weight, 0), 1, 99);
 }
 
+/** Prices we actually read on the pricing page (empty when there is none, or it had no prices). */
+function publishedPrices(c: CrawlResult): string[] {
+  return c.extraPages.filter((p) => p.kind === "pricing").flatMap((p) => p.priceMentions);
+}
+
+/** True when the site shows prices somewhere we read, so "your pricing is hidden" would be false. */
+function pricesPublished(c: CrawlResult): boolean {
+  return c.home.priceMentions.length > 0 || publishedPrices(c).length > 0;
+}
+
+/** "Pricing is hidden / buried / a secret" style claims. */
+const HIDDEN_PRICE_RE = /(hid(e|es|den|ing)|buri(ed|es)|secret|gated|conceal|tucked away|behind (a |the )?(sign|wall|demo|call|form|trial|click)|no (visible )?price|without (a |any )?price)/i;
+const claimsHiddenPricing = (s: string) => /pric|cost|\$/i.test(s) && HIDDEN_PRICE_RE.test(s);
+
 export function signalLines(c: CrawlResult): string {
   const h = c.home;
   const yes = (b: boolean) => (b ? "yes" : "no");
@@ -85,7 +99,7 @@ export function signalLines(c: CrawlResult): string {
     `images: ${h.images} (missing alt: ${h.imagesMissingAlt}, logo-like: ${h.logoImages}) | forms: ${h.forms} | email_inputs: ${h.emailInputs}`,
     `testimonial_blocks: ${h.testimonialSignals} | trust_phrases: ${h.trustPhrases.join(", ") || "none"}`,
     `privacy_link: ${yes(h.hasPrivacy)} | terms_link: ${yes(h.hasTerms)} | contact: ${yes(h.hasContact)} | social_links: ${h.socialLinks.length}`,
-    `price_mentions: ${h.priceMentions.join(", ") || "none on homepage"} | pricing_page: ${h.internal.pricing || "not linked"}`,
+    `price_mentions: ${h.priceMentions.join(", ") || "none on homepage"} | pricing_page: ${h.internal.pricing || "not linked"} | pricing_page_prices: ${publishedPrices(c).join(", ") || "none read"} | pricing_in_nav: ${yes(h.navLinks.some((t) => /pric|plans|upgrade/i.test(t)))}`,
     `stats_on_page: ${h.numbers.join(", ") || "none"} | word_count: ${h.wordCount}`,
     `heuristic_scores (rough, rule-based): ${JSON.stringify(heuristicScores(c))}`,
   ].join("\n");
@@ -147,6 +161,8 @@ ACCURACY RULES (a wrong claim destroys the whole report):
 - Signals come from automated extraction and can miss things (e.g. content loaded by JavaScript, a single /legal page). Only state that something is missing when the signals AND the page text both show it, and phrase it as "we couldn't find X" rather than "X doesn't exist".
 - Treat odd spacing or truncation in extracted text as an extraction artifact, never as the site's typo. If a headline contains fragments that look like UI widget text (times like "12:30 PM", durations like "30m", button labels), that's an embedded animation: judge the headline by its readable sentence only and never quote the fragments.
 - Never invent numbers, guarantees, SLAs, percentages, customer names, logos or claims the company hasn't made. This applies everywhere, including the rewrite's proofLine. Use placeholders like [X customers] or [99.X% uptime] for anything not stated on their page.
+- Pricing: when pricing_page_prices lists prices, their prices are published. Never call pricing hidden, buried, secret, gated or behind a trial, signup or demo. The most you may say is that the homepage itself shows no price, and only when that is true.
+- Clichés every founder has already heard ("pricing is hidden", "add testimonials", "the headline is vague", "you brag about funding") are not aha moments. Use one only with hard evidence and only if nothing sharper exists.
 - Write evidence the way a visitor would describe the page ("your homepage shows no price", "the hero buttons are 'Get started' and 'Download ZIP'"). Never mention our internal data labels such as signals, price_mentions, trust_phrases, buttons_and_ctas or heuristic scores.
 
 Score four areas 0-100 with this calibration:
@@ -165,6 +181,7 @@ Return ONLY a JSON object with exactly this shape:
   "oneLiner": "what they actually do, plain English, max 14 words",
   "verdict": "3-7 word headline verdict",
   "roast": "1-2 sentence roast, max 230 characters, quotable on X, specific to this site (quote them if you can)",
+  "roastAlt": "a second roast on a completely different angle, same rules",
   "blindSpots": [ exactly 3, most surprising first: {
       "title": "the thing they forgot, max 12 words, phrased so the founder winces (e.g. 'Your best number is hidden in paragraph nine')",
       "evidence": "the exact quote or signal that proves it, max 40 words",
@@ -403,5 +420,37 @@ export async function analyze(c: CrawlResult, comps: CompetitorRead[], market: M
     model: MODELS.main,
     fallbackModel: MODELS.fast,
   });
-  return sanitize(raw, fallback, comps);
+  return dropFalsePricingClaims(sanitize(raw, fallback, comps), str(raw.roastAlt, 280), c);
+}
+
+/**
+ * The model loves "your pricing is hidden", even when it was handed the prices. When we read prices on the
+ * site, any such claim is false: drop it, and swap the roast for the alternate (or the best remaining finding).
+ */
+function dropFalsePricingClaims(a: Analysis, roastAlt: string, c: CrawlResult): Analysis {
+  if (!pricesPublished(c)) return a;
+  const ok = (s: string) => !claimsHiddenPricing(s);
+  const blindSpots = a.blindSpots.filter((b) => ok(`${b.title} ${b.evidence}`));
+  let roast = a.roast;
+  if (!ok(roast)) {
+    const top = blindSpots[0];
+    roast = roastAlt && ok(roastAlt) ? roastAlt : top ? `${top.title}. ${top.fix}`.slice(0, 280) : a.roast;
+    if (!ok(roast)) roast = `${a.verdict}. ${a.oneLiner}`;
+  }
+  const scores = { ...a.scores };
+  for (const k of SCORE_KEYS) {
+    scores[k] = { ...scores[k], issues: scores[k].issues.filter(ok), fixes: scores[k].fixes.filter(ok) };
+  }
+  const comparison = a.comparison.filter((x) => ok(`${x.theyDoBetter} ${x.youDoBetter}`));
+  const dropped = a.blindSpots.length - blindSpots.length + (roast !== a.roast ? 1 : 0);
+  if (dropped) console.warn(`[analyze] dropped ${dropped} false "hidden pricing" claim(s)`);
+  return {
+    ...a,
+    roast,
+    verdict: ok(a.verdict) ? a.verdict : "Strong page, softer edges",
+    blindSpots: blindSpots.length ? blindSpots : a.blindSpots.filter((b) => ok(b.title)),
+    scores,
+    growth: a.growth.filter((g) => ok(`${g.title} ${g.detail}`)),
+    comparison: comparison.length ? comparison : a.comparison,
+  };
 }
