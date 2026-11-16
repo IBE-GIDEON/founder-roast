@@ -22,9 +22,9 @@ export interface MarketGuess {
   seeds: { name: string; domain: string; why: string }[];
 }
 
-const SYSTEM = `You are a market analyst. From a startup's homepage content, identify its product category, its target customer, and its 6 most direct competitors: products a buyer would evaluate INSTEAD of this one, to do the same job.
+const SYSTEM = `You are a market analyst. From a startup's homepage content, identify its product category, its target customer, and its 7 most direct competitors, closest first: products a buyer would evaluate INSTEAD of this one, to do the same job.
 Rules:
-- Only real products with real public websites you are confident exist. Give the root domain only (e.g. "asana.com").
+- Only real products whose official website domain you know for certain. Give the root domain only (e.g. "asana.com"). If you are not sure of a company's exact domain (many share a name: dock.io is not the sales tool Dock), pick a different competitor.
 - A direct competitor does the same core job for the same buyer, so the buyer picks one or the other. Prefer focused products of similar scope. Include at most one big incumbent, and only if buyers genuinely choose between them.
 - NOT competitors: platforms the startup plugs into or is built on (its CRM, email, chat, calendar, cloud, AI model or payment provider), its investors, partners and customers, and broad suites that merely contain a similar feature. <not_rivals> quotes where the site names companies in those roles: never pick any of them.
 - When <own_comparison_page>, <rivals> or <compare_links> show who the site positions itself against, pick from those first: the ones in the section closest to the startup's own core job.
@@ -183,7 +183,7 @@ export async function guessMarket(home: PageData, ownDomain: string): Promise<Ma
   // A "vs QuickBooks" link means QuickBooks is a rival even if the page also lists it as an integration.
   const dropped = seeds.filter((s) => namedAsNonRival(s, { notRivals: mentions.notRivals, rivals: [...mentions.rivals, ...home.compareLinks] }));
   if (dropped.length) console.warn(`[market] dropped partners named on the site: ${dropped.map((s) => s.name).join(", ")}`);
-  const kept = seeds.filter((s) => !dropped.includes(s)).slice(0, 5);
+  const kept = seeds.filter((s) => !dropped.includes(s)).slice(0, 7);
   return { category: (raw.category || "").slice(0, 80), audience: (raw.audience || "").slice(0, 80), seeds: kept };
 }
 

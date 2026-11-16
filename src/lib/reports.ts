@@ -125,10 +125,10 @@ export async function createReport(input: string, emit: Emit = () => {}): Promis
   emit({ t: "market", category: market.category, audience: market.audience });
   step("Mapping your market", "info", `${market.category}${market.audience ? ` · for ${market.audience.toLowerCase()}` : ""}`);
 
-  // Show four; read a fifth quietly as a backup in case one of the four is unreachable or the wrong business.
+  // Show four; read up to three more quietly as backups for any that are unreachable or the wrong business.
   const MAX_COMPS = 4;
   const seeds = market.seeds.slice(0, MAX_COMPS);
-  const backups = market.seeds.slice(MAX_COMPS, MAX_COMPS + 1);
+  const backups = market.seeds.slice(MAX_COMPS, MAX_COMPS + 3);
   for (const s of seeds) emit({ t: "competitor", domain: s.domain, name: s.name, logo: logoFor(s.domain), status: "found" });
   if (seeds.length) step(`Found ${seeds.length} competitors`, "ok", seeds.map((s) => s.name).join(", "));
 
