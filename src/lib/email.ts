@@ -1,5 +1,5 @@
 import "server-only";
-import { SITE_NAME } from "./site";
+import { CONTACT_EMAIL, SITE_NAME } from "./site";
 
 /**
  * Sends a transactional email. Free option first:
@@ -7,12 +7,14 @@ import { SITE_NAME } from "./site";
  * - Resend (RESEND_API_KEY): needs your own domain to email customers.
  * Silently skipped if neither is configured.
  */
-async function send(to: string, subject: string, title: string, intro: string, button: string, link: string) {
-  if (!to) return;
+async function send(to: string, subject: string, title: string, intro: string, button: string, link: string): Promise<boolean> {
+  if (!to) return false;
   const smtpUser = process.env.SMTP_USER;
   const smtpPass = process.env.SMTP_PASS;
   const key = process.env.RESEND_API_KEY;
-  if (!(smtpUser && smtpPass) && !key) return;
+  if (!(smtpUser && smtpPass) && !key) return false;
+  // Replies from buyers go to the support inbox, even when a different Gmail does the sending.
+  const replyTo = CONTACT_EMAIL || undefined;
   const html = `
   <div style="font-family:Inter,Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;color:#0e1116">
     <h1 style="font-size:22px;margin:0 0 12px">${title}</h1>
@@ -30,18 +32,32 @@ async function send(to: string, subject: string, title: string, intro: string, b
         secure: true,
         auth: { user: smtpUser, pass: smtpPass.replace(/\s+/g, "") },
       });
-      await transport.sendMail({ from: `${SITE_NAME} <${smtpUser}>`, to, subject, html });
-      return;
+      await transport.sendMail({ from: `${SITE_NAME} <${smtpUser}>`, to, replyTo, subject, html });
+      return true;
     }
     const from = process.env.EMAIL_FROM || `${SITE_NAME} <onboarding@resend.dev>`;
-    await fetch("https://api.resend.com/emails", {
+    const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from, to, subject, html }),
+      body: JSON.stringify({ from, to, subject, html, ...(replyTo ? { reply_to: replyTo } : {}) }),
     });
+    return res.ok;
   } catch (e) {
     console.error("[email] failed", (e as Error).message);
+    return false;
   }
+}
+
+/** Ops check: emails the support inbox only (never an arbitrary address). */
+export function sendTestEmail() {
+  return send(
+    CONTACT_EMAIL,
+    `${SITE_NAME}: live email test`,
+    "Live email is working",
+    "This came from the live Founder Roast site. Buyers will receive their private report links like this.",
+    "Open Founder Roast",
+    process.env.NEXT_PUBLIC_SITE_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "https://founder-roast.vercel.app"),
+  );
 }
 
 /** Sends the buyer their private report link via Resend. Silently skipped if Resend isn't configured. */
